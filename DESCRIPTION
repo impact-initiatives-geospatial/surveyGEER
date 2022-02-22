@@ -1,0 +1,10 @@
+Package: surveyGEER
+Type: Package
+Title: Bringing relevant GEE Data Into Your Assessment 
+Version: 0.1.0
+Author: Zack Arno
+Maintainer: Zack Arno <zackarno@gmail.com>
+Description: Brings relevant remotely sensed GEE data to you assessment and finger tips.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true

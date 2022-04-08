@@ -1,0 +1,127 @@
+---
+title: "workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+
+devtools::load_all()
+library(tidyverse)
+library(easyrgee)
+library(surveyGEER)
+library(here)
+
+
+# easyrgee::ee_extract_long
+```
+
+## DEMO
+- read in original raw data 
+
+```{r}
+
+# I will read in surveyGEER package example "raw" data set
+dat <-  read_csv("data/example_raw_data.csv")
+dat
+dat |> glimpse()
+```
+
+- run `setup_geo_data` function to anonymize data 
+- creates a `data_share` folder with anonymized coordinates 
+- creates a `vault` folder with a lookup table
+
+```{r}
+
+
+setup_geo_data(df = dat,
+               uuid = "_uuid",
+               lon = "_gps_reading_longitude" ,
+               lat = "_gps_reading_latitude" 
+               )
+
+# done
+```
+
+Let's look at the outputs - first the anonymized coordinates
+The geodat is anonymous. I believe there should be 0/very low risk associated with this file on it's own. 
+- this file can be sent to me/another analyst for RS extraction
+- the data keeper can/probably should delete this folder after sending
+- keep only the vault folder
+
+```{r}
+geodat <- read_rds(file = "data_share/coords_anonymized.rds")
+```
+
+
+lookup is also is anonymous. Should be 0/very low risk associated with this file on it's own. 
+```{r}
+lookup<- read_rds("vault/lookup.rds")
+```
+
+
+
+
+
+## Encryption
+- encrypt the file
+- with ssh key we are using assymetric encryption (public + private key)
+```{r}
+user_key_path <- cyphr::ssh_keygen(path = "vault",
+                                   password = rstudioapi::askForPassword()
+                                   )
+
+cyphr::data_admin_init("vault", path_user = user_key_path)
+key <- cyphr::data_key("vault", path_user = user_key_path)
+
+cyphr::encrypt(saveRDS(lookup, "vault/lookup_encrypt.rds"), key)
+readRDS("vault/lookup_encrypt.rds")
+
+```
+
+delete un-encrypted..... eventually we need to link new attributes
+
+```{r}
+
+# doesn't work
+readRDS("vault/lookup_encrypt.rds")
+
+key <- cyphr::data_key(path_data = "vault",path_user = "vault")
+
+cyphr::decrypt(readRDS("vault/lookup_encrypt.rds"),key)
+
+```
+
+- cant i just use symmetric encryption since it's not meant for communication or sharing
+
+
+```{r}
+
+k <-  openssl::aes_keygen()
+actual_key <- cyphr::key_openssl(key = k,mode = "cbc")
+# dir.create("encrypt_sandbox")
+openssl::aes_cbc_encrypt(data = "vault/lookup.rds",key = rstudioapi::askForPassword())
+cyphr:::openssl_find_key()
+path <- Sys.getenv("USER_KEY", "~/.ssh/id_rsa")
+
+?Sys.getenv()
+# key <- cyphr::key_openssl(
+# cyphr::encrypt_data()
+```
+
+
+
+
+
+
+

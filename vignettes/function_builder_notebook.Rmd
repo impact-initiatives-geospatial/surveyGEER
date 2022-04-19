@@ -1,0 +1,793 @@
+---
+title: "function_building"
+author: "Zack Arno"
+date: "4/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+
+
+
+Again I believe there should be 0/very low risk associated with this file on it's own. 
+
+
+
+- you will need to choose a single date for your assessment. This should be a date during which the data collection took place. The best dates to choose are either a.) start of assessment, b.) end of assessment, c.) middle of assessment
+- The assessment date object created here will be used in later `ee_` functions
+```{r}
+
+
+# choose assessment date 
+# assessment_date <- 
+
+assessment_date <-  median_survey_date(df = dat, survey_date = "survey_date")
+
+
+
+
+
+
+
+```
+
+
+## Data setup
+This creates a new geodata file (`gd.rds`) in the `dat` folder. It can be linked back to the original assessment data with `lt.rds` in the `dat` folder.
+
+This should only really run this once. In fact, you will get an error if you run it again.
+```{r}
+# debugonce(setup_geo_data)
+setup_geo_data(df = dat, 
+                uuid = "_uuid",
+                lon = "_gps_reading_longitude",
+                lat = "_gps_reading_latitude")
+```
+
+overwrite the dat object with the new anonymized geodata
+```{r}
+dat <- read_rds(file = here::here("dat/gd.rds"))
+lt <- read_rds(file = here::here("dat/lt.rds"))
+path_secret <- file.path("dat", "lt2.rds")
+
+
+k <- openssl::aes_keygen()
+key <- cyphr::key_openssl(k)
+
+pw_encrypted <- cyphr::encrypt_string("buttercuppeanut", key)
+cyphr::decrypt_string(pw_encrypted, key)
+
+cyphr::encrypt_object(object = lt, key = key, path_secret)
+
+bla <- cyphr::ssh_keygen(path = "dat",password = "butternut")
+
+
+
+
+
+
+
+sec_key <- cyphr::key_openssl(aes("mysecretkey"))
+
+key
+
+
+cyphr::encrypt_object(object = lt, key = key, path_secret)
+
+key
+read_rds("dat/lt_secret.rds")
+
+k <- openssl::aes_keygen()
+
+secret <- cyphr::encrypt_string("my secret string", key)
+cyphr::decrypt_string(secret, key)
+
+path_secret <- "dat/lt2.rds"
+cyphr::encrypt_object(obj, key, path_secret)
+
+```
+
+now we are ready for extraction
+
+# how about NDVI
+
+What date range do we want to extract modis for? Recomment
+
+- a monthly composite composed of dates 1 month prior to assessment
+- how to deal with clouds?
+- need to set some contextual parameters (these should go at top)
+
+
+
+```{r}
+final_month_of_last_grow_season <-  "2021-09-01"
+
+date_range <- date_to_range(date = assessment_date,make_range = "backward",by = 1,unit = "month")
+
+library(rgee)
+ee_Initialize()
+
+#' extract NDVI deviance (z scores)
+#' @param dat sf object
+#' @param date assessment date to use
+#' @param ic_url `ee$ImageCollection` source url
+#' @description provide point data, date, and GEE multi-band imagery URL and
+#' function will calculate the monthly NDVI composite for the date provided, the three previous months and compare that to 
+#' a historical baseline
+#' @return data.frame containing original sf object identified column along with the NDVI for the assessment month and previous 3 month Z-scores 
+#' compared to the historical baseline for those months.
+#' 
+#' 
+#' @examples \dontrun{
+#' # need to finish example
+#' # dat =  load_dat()
+#'  assessment_date <- "2021-06-014"
+#'  extract_ndvi_z(dat=dat, date=assessment_date, ic_url="MODIS/006/MOD13Q1")
+#' 
+#' }
+#' 
+#' 
+
+
+
+
+extract_ndvi_z <-  function(dat=dat,date=assessment_date,ic_url="MODIS/006/MOD13Q1"){
+  
+  
+  run_date <- Sys.Date()
+  # v0.1 should support MODIS and hopefully l8, need to figure out if we can make historical baseline NDVI for S2 (linear regression?)
+  # assertthat::assert_that(ic_url %in% c(modis,sentinel,l8))
+  cat("creating bounding bbox_ee\n")
+  bbox_ee<- rgee::sf_as_ee(sf::st_bbox(dat) |> sf::st_as_sfc())
+  ic <- rgee::ee$ImageCollection(ic_url)$filterBounds(bbox_ee)
+  if(ic_url=="MODIS/006/MOD13Q1"){
+    baseline_years <- c(2000,2015) # may want to parameterize this
+    ic <- ic$select("NDVI")
+    scale <- 250
+    src_suffix <- "MODIS"
+  }
+    ic_dates <- rgee::ee_get_date_ic(ic)
+    last_img_meta<- ic_dates |> 
+      mutate(
+        time_start = lubridate::ymd(time_start),
+        days_since= time_start-lubridate::ymd(assessment_date)#,
+        # days_since_abs= abs(lubridate::ymd(time_start)-lubridate::ymd(assessment_date))
+      ) |>
+      # MVP start by looking backwards only - can develop algorithm to decide when okay/better to look forward
+      filter(days_since<=0) |> 
+      slice_max(order_by = days_since,n = 1) 
+    
+    last_img_month = lubridate::month(last_img_meta$time_start)
+    mr<- c(last_img_month-3,last_img_month)
+  
+    
+    
+    moi_mean_composites <- easyrgee::ic_yr_mo_composite_stat(ic = ic,
+                                      month_range = c(mr[1],mr[2]),
+                                      year_range = c(baseline_years[1],baseline_years[2]),
+                                      stat = "mean",monthly_stat_per = "range") |> 
+      easyrgee:::ic_add_month_property() # adds moy property for join later
+    
+    moi_sd_composites <- easyrgee::ic_yr_mo_composite_stat(ic = ic,
+                                      month_range = c(mr[1],mr[2]),
+                                      year_range = c(baseline_years[1],baseline_years[2]),
+                                      stat = "sd",monthly_stat_per = "range") |> 
+      easyrgee:::ic_add_month_property() # adds moy property for join later
+      
+    # a little hacky fix in v0.2
+    assessment_yr<- lubridate::year(last_img_meta$time_start)
+    current_yr_mo_composites <-  easyrgee::ic_yr_mo_composite_stat(ic = ic,
+                                                                   month_range = c(mr[1],mr[2]),
+                                                                   year_range = c(assessment_yr,assessment_yr),
+                                                                   stat="mean",
+                                                                   monthly_stat_per = "range"
+                                                                        )$map(
+                                                                          function(img){
+                                                                            img$select("NDVI_mean")$rename("NDVI") 
+                                                                            
+                                                                            }
+                                                                          ) 
+      current_yr_mo_composites <- current_yr_mo_composites |> easyrgee:::ic_add_month_property() # adds moy property for join later
+      
+    # current_yr_mo_composites |> ee_get_date_ic()
+    # moi_mean_composites|> ee_get_date_ic()
+    # moi_sd_composites |> ee_get_date_ic()
+    # new func
+    #export ic_join_bands
+ 
+ current_and_baseline_stats <-  current_yr_mo_composites |> 
+   easyrgee:::ic_join_bands(y = moi_mean_composites,by = "moy") |>  
+   easyrgee:::ic_join_bands(y=moi_sd_composites,by = "moy") 
+  
+    # current_and_baseline_stats |> ee_get_date_ic()
+    
+    
+    # this is still a bit ugly - opened issue wrap simplifier
+    ndvi_zscore<- current_and_baseline_stats$map(
+      function(img){
+        zscore<- img$expression(
+          "float((NDVI-NDVI_mean)/(NDVI_stdDev))",
+          opt_map= list(NDVI= img$select("NDVI"),
+                        NDVI_mean= img$select("NDVI_mean"),
+                        NDVI_stdDev= img$select("NDVI_stdDev")
+      )
+    )$rename("NDVI_z_score")
+    img$select("NDVI")$addBands(zscore)
+  }
+  
+)
+    
+    cat("extracting value to points")
+    
+    # does this work for points
+    # only about 90s for 1569 pts
+    
+    # ndvi_zscore |> ee_get_date_ic()
+    # ndvi_zscore |> ee_print()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    # sf:::st_geometry_type(dat2)
+    # dat2 <-  dat |>slice(1:3) 
+    # dat2 |> class()
+    # n_distinct(sf::st_geometry_type(dat2))
+    # ee_extract(x = ndvi_zscore |> easyrgee:::map_date_to_bandname_ic(),y= dat2["new_uid"] ,scale = 500 )
+    # dat_w_NDVI |> count(date)
+    
+    # ndvi_zscore |> ee_print()
+    # need to test times - about 100s for 1569 pts
+    # dat_ck<- dat |> slice(1:3) |> sf::st_buffer(0)
+    # debugonce(easyrgee::ee_extract_long)
+    
+     
+    ###############################################################################
+    # TESTING EE_EXTRACT DOESNT LIKE POINTS OR < 10 M BUFFERS
+    ###############################################################################
+    # dat2 <-  dat |>slice(1:3) |> sf::st_transform(crs=32646) |>sf::st_buffer(dist = 10) |> sf::st_transform(crs=4326)
+    # ck_res <- rgee::ee_extract(x = ndvi_zscore,
+    #                            y = dat2["new_uid"],
+    #                            fun =ee$Reducer$mean(),
+    #                            scale = scale,sf=T)
+    #
+    ############################################################################
+    
+    # maybe it should always be a buffer of at least 10 m.... does GEE processing slow down with many requests?
+    # what about null locations? -- should probably be removed first?
+    # 10 m buffer time?
+    # dat10 <-  dat  |> sf::st_transform(crs=32646) |>sf::st_buffer(dist = 10) |> sf::st_transform(crs=4326)
+    dat100 <-  dat  |> sf::st_transform(crs=32646) |>sf::st_buffer(dist = 100) |> sf::st_transform(crs=4326)
+    
+    # dat100_samp <-  dat100 |> slice(1:10)
+    
+    
+    # how does this go in 5 seconds
+    # extract100_samp <- rgee::ee_extract( x = ndvi_zscore |> easyrgee:::map_date_to_bandname_ic(),y = dat100_samp["new_uid"],scale = 250)
+    
+    
+    
+    ##############################################
+    # if ee_extract_log does not work consistently I am going to have to figure out why/if wide does
+    #  is there silent fail going on? 
+    # extract100_full <- rgee::ee_extract( x = ndvi_zscore |> easyrgee:::map_date_to_bandname_ic(),y = dat100,scale = 250)
+    
+    # debugonce(easyrgee::ee_extract_long)
+    # and this takes 100? something
+    #################################################
+    # this last run with 100 m buffers took 110s
+    dat_w_NDVI<- easyrgee::ee_extract_long(ic = ndvi_zscore,
+                                           sf = dat100,
+                                           sf_col = "new_uid",
+                                           scale = scale,reducer = "mean")
+    
+    
+  
+
+    cat("finished extracting points")
+    dat_w_NDVI |> count(date)
+    dat_w_NDVI |> 
+      mutate(
+        mo=lubridate::month(date),
+        mo_diff= lubridate::month(last_img_month) - mo,
+        # hack - fix above would be nicer
+        parameter = if_else(str_detect(string = parameter,"NDVI_z"),"NDVI_Z",parameter),
+        new_col_name = glue::glue("rs.{parameter}_{mo_diff}mo_prev_{src_suffix}"),
+        new_col_name =if_else(mo_diff==0,str_replace_all(new_col_name,"0mo_prev","mo_curr"),as.character(new_col_name))
+        
+      ) |> 
+      
+      select(new_uid,new_col_name, value) |> 
+      pivot_wider(names_from = new_col_name,values_from = value)
+      
+    
+
+    
+    
+    
+  
+  
+  }
+  
+  
+
+
+```
+
+
+
+need to check monthly and see how up to date JRC monthly is
+```{r}
+
+# https://gis.stackexchange.com/questions/404629/earth-engine-calculation-of-distance-between-points-to-nearest-water
+# https://gis.stackexchange.com/questions/408804/forcing-gees-fastdistancetransform-to-operate-at-specific-scale
+dat
+# data()
+
+library(rgee)
+ee_Initialize()
+JRC_yearly <- rgee::ee$ImageCollection("JRC/GSW1_3/YearlyHistory")
+# JRC_yearly |> ee_print()
+# debugonce(ee_get_date_ic)
+# JRC_yearly |> ee_get_date_ic()
+# JRC_yearly$getInfo()
+JRC_example <- JRC_yearly$
+  filterDate(ee$Date("2020-04-01")$advance(-5,"year"),"2021-04-01")
+
+JRC_example |> ee_print()
+JRC_example |> ee_get_date_ic()
+
+thresholded <- JRC_example$min()$gt(1)$selfMask()
+ee$Image(thresholded) |> ee_print()
+nominalScale <- 30
+minPixels <-3
+
+# (nominalScale$pow(2)) * minPixels
+# nominalScale
+
+
+minArea <-  (nominalScale^2)*minPixels
+
+ee$Image$pixelArea()$getInfo()
+
+pixelCount <- thresholded$connectedPixelCount( maxSize= 100)
+area <- pixelCount$multiply(ee$Image$pixelArea())
+largeWaterBodies = thresholded$updateMask(area$gte(minArea))
+largeWaterBodies |> ee_print()
+
+distance_raster <-  largeWaterBodies$mask()$
+  fastDistanceTransform({
+    neighborhood=1024
+  })$multiply(ee$Image$pixelArea())$sqrt()$rename("distance_to")
+
+distance_raster |> 
+  ee_print()
+
+library(sf)
+dat_pt_sample |> glimpse()
+dat_pt_sample<- dat |> 
+  slice(1:3) |> 
+  st_as_sf(coords= c("_gps_reading_longitude"  ,"_gps_reading_latitude"  ), crs= 4326) |> 
+  mutate(across(.cols = c("end_survey","electricity_grid"),.fns = ~as.character(.x)))
+
+dat_pts_sample_ee <- sf_as_ee(dat_pt_sample |> st_geometry())
+# dat_pts_sample_ee |> ee_print()
+distanceFromMultiPoint = distance_raster$
+  sampleRegions(
+    
+    collection= dat_pts_sample_ee,
+    scale= nominalScale#,
+    # geometries= true
+    
+  )
+
+# distanceFromMultiPoint |> ee_print()
+# distanceFromMultiPoint$getInfo()
+distanceFromMultiPoint$aggregate_array("distance_to")$getInfo()
+
+imageCol_masked <- JRC_example$map(
+  function(image){
+    image_masked = image$
+      gt(1)$
+      selfMask()
+    
+    return(ee$Image(image_masked$copyProperties(image,image$propertyNames())))
+      
+  }
+)
+imageCol_masked |> ee_get_date_ic()
+
+JRC_example$first()$pixelArea()$getInfo()
+
+ee$Image$pixelArea()$getInfo()
+
+rgee::ee_extract
+#' closest_distance_to_raster_value
+#' @param x ee$Image or ee$ImageCollection
+#' @param y ee$Geometry$*, ee$Feature, ee$FeatureCollection, sfc or sf objects.
+#' @param geeFC
+#' @param scale
+#' @param min_pixels
+
+
+sf
+ck1 <- closest_distance_to_raster_feature(x = JRC_example,y=sf, scale=30, min_pixels = 1, search_radius = 100)
+ck1 <- closest_distance_to_raster_feature(x = JRC_example,y=sf, scale=30, min_pixels = 3, search_radius = 100)
+ck2 <- closest_distance_to_raster_feature(x = JRC_example,y=sf, scale=30, min_pixels = 3, search_radius = 5)
+ck3 <- closest_distance_to_raster_feature(x = JRC_example,y=sf, scale=30, min_pixels = 50000, search_radius = 1000)
+ck4 <- closest_distance_to_raster_feature(x = JRC_example,y=sf, scale=30, min_pixels = 3, search_radius = 1000)
+
+closest_distance_to_raster_feature <- function(x=JRC_example,y ,scale=30,min_pixels=3,search_radius=100){
+  min_area <-  (scale^2)*min_pixels
+  
+  cat(crayon::green("masking x image/imageCollection\n"))
+  x_masked <- x$map(
+    function(image){
+      image_masked = image$
+        gt(1)$
+        selfMask()
+      
+      return(ee$Image(image_masked$copyProperties(image,image$propertyNames())))
+      
+    }
+  )
+  cat(crayon::green("Calculating connected components and applying size threshold \n"))
+  x_thresholded<- x_masked$map(
+    function(image){
+      pixel_count = image$connectedPixelCount(search_radius)
+      area = pixel_count$multiply(ee$Image$pixelArea())
+      # area = pixel_count$multiply(image$pixelArea())
+      x_gt_min_size = image$updateMask(area$gte(min_area))
+      return(x_gt_min_size)
+    }
+  )
+  # imageCol_size_gt_min |> ee_print()
+  # imageCol_size_gt_min |> ee_get_date_ic()
+  cat(crayon::green("Generating distance raster(s)\n"))
+  euclidean_distance_to_x <-  x_thresholded$
+    map(
+      function(image){
+        distances = image$mask()$
+          fastDistanceTransform({
+            neighborhood=1024
+          })$multiply(ee$Image$pixelArea())$sqrt()$rename("distance_to")
+        return(ee$Image(distances$copyProperties(image,image$propertyNames())))
+        
+      }
+    )
+  # euclidean_distance_imageCol |> ee_print()
+  # euclidean_distance_imageCol |> ee_get_date_ic()
+  # debugonce(exploreRGEE::ee_timeseries)
+  cat(crayon::green("Extracting distance raster values to y\n"))
+  res <- exploreRGEE::ee_timeseries(imageCol = euclidean_distance_to_x$select("distance_to"),geom=sf,temporal="all",scale=30)
+  return(res)
+}
+
+JRC_example$first()$eq(ee$List(list(2,3))) 
+
+# ck2 <- ee_closest_distance_to_val(x = JRC_example$first(),y=sf,val=2)
+ck1 <- ee_closest_distance_to_val(x = JRC_example,y=sf,boolean=">=",val=2,scale=30)
+ck2 <- ee_closest_distance_to_val(x = JRC_example$first(),y=sf,boolean=">=",val=2,scale=30)
+
+debugonce(ee_closest_distance_to_val)
+ck1$first() |> ee_print()
+ck2 <- JRC_example$first()$eq(2)$selfMask()
+ck2 |> ee_print()
+
+
+switch_boolean <-  function(boolean,val){switch(boolean,
+                                       ">" = function(x)x$gt(val),
+                                       ">=" = function(x)x$gte(val),
+                                       "<" = function(x)x$lt(val),
+                                       "<=" = function(x)x$lte(val),
+                                       "=" = function(x)x$eq(val),
+                                       NULL
+
+)
+}
+ee_bool<- switch_boolean(boolean = ">",val = 25)
+
+ee_closest_distance_to_val <-  function(x,...){
+  UseMethod('ee_closest_distance_to_val')
+  
+  
+}
+ee_closest_distance_to_val.ee.imagecollection.ImageCollection <-  function(x,
+                                                                           y,
+                                                                           boolean="=", 
+                                                                           val=2,
+                                                                           scale
+                                                                           ){
+  
+  # stopifnot(!is.null(x), inherits(x, "ee.imagecollection.ImageCollection"))
+  assertthat:::assert_that(!is.null(x), inherits(x, "ee.imagecollection.ImageCollection"))
+  boolean_mask_cond<-switch_boolean(boolean=boolean,val=val)
+  
+  # if(is.numeric(val)){}
+  # cat(crayon::green("masking x image/imageCollection\n"))
+  x_masked <- x$map(
+    function(image){
+      image_masked = boolean_mask_cond(image)$ 
+        selfMask()
+      return(ee$Image(image_masked$copyProperties(image,image$propertyNames())))
+      
+    }
+  )
+  
+    cat(crayon::green("Generating distance raster(s)\n"))
+  euclidean_distance_to_x <-  x_masked$
+    map(
+      function(image){
+        distances = image$mask()$
+          fastDistanceTransform({
+            neighborhood=1024
+          })$multiply(ee$Image$pixelArea())$sqrt()$rename("distance_to")$
+          reproject(crs="EPSG:4326",scale=scale)
+        return(ee$Image(distances$copyProperties(image,image$propertyNames())))
+        
+      }
+    )
+  cat(crayon::green("Extracting distance raster values to y\n"))
+  res <- exploreRGEE::ee_timeseries(imageCol = euclidean_distance_to_x$select("distance_to"),geom=sf,temporal="all",scale=30)
+  return(res)
+}
+
+JRC_example$first() |> class()  
+ee_closest_distance_to_val.ee.image.Image<-  function(x,
+                                                      y,
+                                                      boolean="=", 
+                                                      val=2,
+                                                      scale
+){
+  
+  # stopifnot(!is.null(x), inherits(x, "ee.imagecollection.ImageCollection"))
+  assertthat:::assert_that(!is.null(x), inherits(x, "ee.image.Image"))
+  boolean_mask_cond<-switch_boolean(boolean=boolean,val=val)
+  
+  # if(is.numeric(val)){}
+  cat(crayon::green("masking x image/imageCollection\n"))
+  x_masked <-ee$Image(
+    boolean_mask_cond(x)$
+      selfMask()$
+      copyProperties(x,x$propertyNames())
+    )
+  cat(crayon::green("Generating distance raster(s)\n"))
+  
+        FDT = x_masked$mask()$
+          fastDistanceTransform({
+            neighborhood=1024
+          })
+        
+        distances= FDT$
+          multiply(ee$Image$pixelArea())$
+          sqrt()$
+          rename("distance_to")$
+          reproject(crs="EPSG:4326",scale=scale)
+        
+  euclidean_distance_to_x <-ee$Image(distances$copyProperties(x_masked,x_masked$propertyNames()))
+  
+  cat(crayon::green("Extracting distance raster values to y\n"))
+  res <- exploreRGEE::ee_timeseries(imageCol = euclidean_distance_to_x$select("distance_to"),geom=sf,temporal="all",scale=30)
+  return(res)
+}
+  
+  
+thresholded <- JRC_example$min()$gt(1)$selfMask()
+ee$Image(thresholded) |> ee_print()
+nominalScale <- 30
+minPixels <-3
+
+# (nominalScale$pow(2)) * minPixels
+# nominalScale
+
+
+
+
+pixelCount <- thresholded$connectedPixelCount( maxSize= 100)
+area <- pixelCount$multiply(ee$Image$pixelArea())
+largeWaterBodies = thresholded$updateMask(area$gte(min_area))
+largeWaterBodies |> ee_print()
+
+distance_raster <-  largeWaterBodies$mask()$
+  fastDistanceTransform({
+    neighborhood=1024
+  })$multiply(ee$Image$pixelArea())$sqrt()$rename("distance_to")
+
+distanceFromMultiPoint = distance_raster$
+  sampleRegions(
+    
+    collection= dat_pts_sample_ee,
+    scale= scale#,
+    # geometries= true
+    
+  )
+
+# distanceFromMultiPoint |> ee_print()
+# distanceFromMultiPoint$getInfo()
+distanceFromMultiPoint$aggregate_array("distance_to")$getInfo()
+
+
+
+  
+}
+
+
+
+
+```
+
+
+extract_pixel_values (inspired by geemap). Could be useful for general work as well as developing the `Inspector` feature
+
+```{r}
+# https://geemap.org/common/
+
+#' Extract pixel values of `ee$Image` or `ee$ImageCollection`
+#' @description Samples the pixels of an image, returning them as a ee.Dictionary.
+#' @param dat sf object
+#' @param ee_object ee$Image or ee$ImageCollection
+# data(dat)
+# dat |> slice(1:3)
+# rgee::ee_extract()
+library(sf)
+library(rgee)
+rgee::ee_Initialize()
+dat <-  read_csv("data/example_raw_data.csv")
+dat <- dat |> slice(1:3)
+sf <- st_as_sf(dat,coords=c("_gps_reading_longitude","_gps_reading_latitude"),crs=4326) |> 
+  select(`_uuid`)
+
+sf_buffer <-  sf |> 
+  st_transform(crs=32646) |> 
+  st_buffer(dist= 10) |> 
+  st_transform(crs=4326)
+JRC_yearly <- rgee::ee$ImageCollection("JRC/GSW1_3/YearlyHistory")
+# JRC_yearly |> ee_print()
+JRC_yearly$aggregate_array("system:time_start")$getInfo()
+
+# debugonce(ee_get_date_ic)
+# JRC_yearly |> ee_get_date_ic()
+# JRC_yearly$getInfo()
+JRC_example <- JRC_yearly$
+  filterDate(ee$Date("2020-04-01")$advance(-5,"year"),"2021-04-01")
+
+JRC_example |> ee_get_date_ic()
+
+extract_pixel_values <- function(sf,ee_object=JRC_example, scale=30){
+   
+  cat("uploading sf feature as temporary cloud asset")
+  # assert_that (no_logical columns in sf)
+  fc |> ee_print()
+  fc <- sf_as_ee(sf)
+  
+  # try on modis see if it works
+  bbox_ee<- rgee::sf_as_ee(sf::st_bbox(sf) |> sf::st_as_sfc())
+  ee_object <- rgee::ee$ImageCollection(ic_url)$filterBounds(bbox_ee)
+  ee_object <-  ee_object$filterDate("2021-01-01","2021-04-01")
+  
+  ee_object_image = ee_object$first()
+  ee_object_image |> class()
+  ee_object_first <- ee_object$first()
+  ee_object |> ee_get_date_ic()
+  # ee_object_first |> ee_print()
+  debugonce(exploreRGEE:::extract_time)
+  ck1 <- exploreRGEE::ee_timeseries(imageCol = ee_object$select("NDVI"),geom=sf,temporal="all",scale=30)
+  exploreRGEE::ee_timeseries(imageCol = ee_object,geom=sf_buffer,temporal="all",scale=30)
+  # exploreRGEE::ee_timeseries(imageCol = ee_object_first,geom=sf_buffer,temporal="all",scale=30)
+  
+  fc_pixel_vals <- ee_object_first$sampleRegions( 
+       collection= fc,
+       scale= scale
+       #,
+    # geometries= true
+    
+  )
+  # ee_object$sampleRegions
+  res$getInfo()
+  res <- fc_pixel_vals
+  res$get("waterClass")
+  res$aggregate_array("waterClass")$getInfo()
+  res |> ee_print()
+  
+  res$getInfo() |> ee_print()
+  ee_object |> ee_print()
+  
+  fc_pixel_vals <- ee_object$map(
+    function(img){
+      img$sampleRegions(
+       collection= fc,
+       scale= scale
+       #,
+    # geometries= true
+    
+  )
+    }
+  )
+      
+  
+  
+  
+}
+```
+
+- parameters that make sense when aggregated:
+  + maybe start of rainy season date?
+
+
+
+```{r}
+# var getCloudScores = function(img){
+#     //Get the cloud cover
+#     var value = ee.Image(img).get('CLOUD_COVER');
+#     return ee.Feature(null, {'score': value})
+# };
+# 
+# var results = landsat.map(getCloudScores);
+# print(Chart.feature.byFeature(results));
+
+#' get cloud scores
+#' @param img image
+#' @return data.frame containing image date and cloud score
+#' 
+
+
+getCloudScores <-  function(img){
+  value <-  ee$Image(img)$get("CLOUD_COVER")
+  
+}
+
+```
+
+
+```{r}
+
+# # do we want NDVI of closest image or median composite say 1 month prior?
+# closest_img_date <-  function(ic, date){
+#   
+#   date <-  lubridate::ymd(date)
+#   ee_date <- rgee::ee$Date(date)
+#   
+#   
+# }
+# 
+# ic = ic.map(function(image){
+#   return image.set(
+#     'dateDist',
+#     ee.Number(image.get('system:time_start')).subtract(dateOfInterest.millis()).abs()
+#   );
+# });
+# This new field 'dateDist' can now be used to sort the image collection.
+# 
+# ic = ic.sort('dateDist');
+
+```
+
+
+
+
+
+
+```{r}
+
+# from geemap for points i think
+dict_values_tmp = ee_object.reduceRegion(
+                            reducer=self.roi_reducer,
+                            geometry=self.user_roi,
+                            scale=scale,
+                            bestEffort=True,
+                        ).getInfo()
+
+
+```
+

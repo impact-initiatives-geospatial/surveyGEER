@@ -8,3 +8,9 @@ Description: Brings relevant remotely sensed GEE data to you assessment and fing
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+Depends: 
+    R (>= 2.10)

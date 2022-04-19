@@ -3,3 +3,7 @@
 ^README\.Rmd$
 ^dev_history\.R$
 ^LICENSE\.md$
+^dat\.rds$
+^dat/dat\.rda$
+^data/example_raw_data\.csv$
+^data/dat\.rda$

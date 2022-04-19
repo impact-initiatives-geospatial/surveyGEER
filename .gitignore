@@ -2,3 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
+inst/doc
+dat/*
+dat/dat.rda
+data/dat.rda
+data/example_raw_data.csv
+vault/*
+data_share/*
+*.csv

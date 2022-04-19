@@ -19,11 +19,10 @@ knitr::opts_chunk$set(
 devtools::load_all()
 library(tidyverse)
 library(easyrgee)
-library(surveyGEER)
+library(surveyGEER) # loads example datset as dat
 library(here)
 
 
-# easyrgee::ee_extract_long
 ```
 
 ## DEMO
@@ -31,9 +30,6 @@ library(here)
 
 ```{r}
 
-# I will read in surveyGEER package example "raw" data set
-dat <-  read_csv("data/example_raw_data.csv")
-dat
 dat |> glimpse()
 ```
 
@@ -54,26 +50,29 @@ setup_geo_data(df = dat,
 ```
 
 Let's look at the outputs - first the anonymized coordinates
-The geodat is anonymous. I believe there should be 0/very low risk associated with this file on it's own. 
-- this file can be sent to me/another analyst for RS extraction
-- the data keeper can/probably should delete this folder after sending
-- keep only the vault folder
+The geodata is anonymous.
+- this file can be sent to RS analyst for RS extraction
+- the data keeper can should delete this folder after sending and keep only the vault folder
 
 ```{r}
 geodat <- read_rds(file = "data_share/coords_anonymized.rds")
 ```
 
 
-lookup is also is anonymous. Should be 0/very low risk associated with this file on it's own. 
+lockup is also is anonymous.
 ```{r}
 lookup<- read_rds("vault/lookup.rds")
 ```
 
+at this point it is easy to just use an application like `7zip` to make a password encrypted compressed folder for the `vault` folder.
 
 
 
+### Encryption in R - not necessary
 
-## Encryption
+Below i am just playing around with the `cyphr` package. I don't think this is very necessary.
+
+
 - encrypt the file
 - with ssh key we are using assymetric encryption (public + private key)
 ```{r}

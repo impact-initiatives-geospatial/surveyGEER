@@ -10,3 +10,6 @@ data/example_raw_data.csv
 vault/*
 data_share/*
 *.csv
+R/setup_geo_data.R
+vignettes/workflow.Rmd
+*.xlsx

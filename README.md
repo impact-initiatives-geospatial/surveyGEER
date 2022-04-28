@@ -13,41 +13,45 @@ Bring the remotely sense data straight into your survey data set
 You can install the development version of surveyGEER like so:
 
 ``` r
-# FILL THIS IN! HOW CAN PEOPLE INSTALL YOUR DEV PACKAGE?
+devtools::    
 ```
 
-## Example
+This package will hold templates and data-pipelines to extract remote
+sensing data using the `rgee` and new `tidyrgee` packages. Templates
+will be stored as vignettes in the package. I will provide one template
+in this readme to serve as an example
 
-This is a basic example which shows you how to solve a common problem:
+## Hex Maps
+
+This template will show you how to extract the data to make maps similar
+to these hexagon maps below
+
+**NDVI Standard Score Map**
+<img src="man/figures/202203_som_ndvi.png" width="100%" style="display: block; margin: auto;" />
+
+**Precipitaiton Record Low Map**
+<img src="man/figures/20220420_som_record_low_rainfall_2021.png" width="100%" style="display: block; margin: auto;" />
+
+Well below is the code to extract the data relevant to your context.
+Once the data is extracted it can easily be mapped in any GIS software
+(even here in R). If you like how the above examples look, feel free to
+email <zack.arno.ext@impact-initiatives.org> for the QGIS templates
 
 ``` r
 library(surveyGEER)
-## basic example code
+library(rgee)
+library(tidyrgee)
+#> 
+#> Attaching package: 'tidyrgee'
+#> The following object is masked from 'package:rgee':
+#> 
+#>     ee_extract
+#> The following object is masked from 'package:stats':
+#> 
+#>     filter
+
+# ee_Initialize()
 ```
 
 What is special about using `README.Rmd` instead of just `README.md`?
 You can include R chunks like so:
-
-``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
-```
-
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this. You could also
-use GitHub Actions to re-render `README.Rmd` every time you push. An
-example workflow can be found here:
-<https://github.com/r-lib/actions/tree/v1/examples>.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.

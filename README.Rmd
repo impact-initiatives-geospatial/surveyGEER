@@ -19,22 +19,25 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-Bring the remotely sense data straight into your survey data set
+This project/package contains ready to go code templates utilizing `rgee` and `tidyrgee` to extract remote sensing data for statistical analysis and mapping. `rgee` is the R API for Google Earth Engine (GEE)and includes all of the GEE functionality available in the code editor with a syntax that parallels both the JavaScript and the Python GEE APIs. `tidyrgee` is a package currently under rapid development that wraps the `rgee` package to create a syntax parallel to the `tidyverse`/`dplyr`. The goal of `tidyrgee` is to simplify alot of the more complicated currently necessary under the JavaScript and Python paradigms. 
+
+SurveyGEER will provide templates using `tidyrgee`, and eventually even wrap into even larger functions specifically designed for REACH purpose. The `tidyrgee` syntax should make remote sensing with GEE in R simple for any r/tidyverse user, but we will aim for larger specific wrappers where outputs can be produced from one function so that even complete novices can produce these standardized analysis outputs.
+
 
 ## Installation
 
 You can install the development version of surveyGEER like so:
 
 ``` r
-devtools::    
+devtools::install_github("")
 ```
 
-This package will hold templates and data-pipelines to extract remote sensing data using the `rgee` and new `tidyrgee` packages. Templates will be stored as vignettes in the package. I will provide one template in this readme to serve as an example
+This package will hold templates and data-pipelines to extract remote sensing data using the `rgee` and new `tidyrgee` packages. Templates will be stored as vignettes in the package. I will provide one template in this readme to serve as an example for new users just visiting the page for the first time:
 
 
 ## Hex Maps
 
-This template will show you how to extract the data to make maps similar to these hexagon maps below
+This annotated code below will show you how to extract the data to make maps similar to these hexagon maps below
 
 **NDVI Standard Score Map**
 ```{r, echo=FALSE, fig.align='center', out.width='100%'}
@@ -46,16 +49,54 @@ knitr::include_graphics("man/figures/202203_som_ndvi.png")
 knitr::include_graphics("man/figures/20220420_som_record_low_rainfall_2021.png")
 ```
 
-Well below is the code to extract the data relevant to your context. Once the data is extracted it can easily be mapped in any GIS software (even here in R). If you like how the above examples look, feel free to email zack.arno.ext@impact-initiatives.org for the QGIS templates
+Below is the code to extract the data relevant to your context. Once the data is extracted it can easily be mapped in any GIS software (even here in R). If you like how the above examples look, feel free to email zack.arno.ext@impact-initiatives.org for the QGIS templates. The output below can be put directly into the QGIS templates.
+
+```{r}
+local_aoi_available <- F
+local_grid_available <- F
+aoi_gdb_path<-""
+grid_gdb_path <- ""
+aoi_layer_name <- ""
+grid_layer_name<-""
+
+
+
+if(local_grid_available){
+  grid <- st_read(grid_gdb_path,aoi_layer)
+}
+if(local_aoi_available){
+    aoi <- st_read(grid_gdb_path,aoi_layer)
+}
+
+```
 
 ```{r example}
 library(surveyGEER)
 library(rgee)
 library(tidyrgee)
 
-# ee_Initialize()
+ee_Initialize()
 
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+
+```{r}
+
+```
+
+```{r, echo=F}
+ # con <- DBI::dbConnect(RPostgres::Postgres(),
+ #                      dbname = "global_gdb",
+ #                      user      = rstudioapi::askForPassword("Database user"),
+ #                      password      = rstudioapi::askForPassword("Database password"),
+ #                      port     = 5432)
+
+
+```
+
+```{r}
+
+
+
+```
 

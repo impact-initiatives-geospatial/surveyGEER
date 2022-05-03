@@ -1,6 +1,21 @@
 # usethis::use_build_ignore(files = "dev_history.R")
 
 
+
+
+con <- DBI::dbConnect(RPostgres::Postgres(),
+                      dbname = "global_gdb",
+                      user      = rstudioapi::askForPassword("Database user"),
+                      password      = rstudioapi::askForPassword("Database password"),
+                      port     = 5432)
+library(sf);
+adm1 <- st_read(con, "som_adm1")
+adm1_diss <- adm1 |>
+  summarise() |>
+  st_simplify(0.1)
+som_boundary <- adm1_diss
+usethis::use_data(som_boundary)
+
 library(sf)
 dat <- read_csv(here::here("../../HH_HC_MSNA.csv"))
 

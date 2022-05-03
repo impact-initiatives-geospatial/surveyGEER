@@ -7,3 +7,4 @@
 ^dat/dat\.rda$
 ^data/example_raw_data\.csv$
 ^data/dat\.rda$
+^R/setup_geo_data\.R$

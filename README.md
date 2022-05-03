@@ -194,7 +194,7 @@ monthly_sd_baseline <- modis_ndvi_tidy |>
   summarise(stat="sd")
 ```
 
-Now we have two 12 image `ImageCollecitons` each with one band
+Now we have two 12 image `ImageCollection`s each with one band
 (“NDVI_mean”,“NDVI_sd”). We can join these bands using an `inner_join`.
 The common property that should be used for this band is “month” since
 we want the monthly mean and standard deviation for each month to be
@@ -209,7 +209,7 @@ monthly_baseline <- monthly_mean_baseline |>
 Now that we have our baseline let’s calculate the the average monthly
 NDVI for more recent years so that we can compare. We will first filter
 the `ImageCollection` to 2016-2022. Since we are working with the MODIS
-NDVI 16-day composite we have approximately 12 images per month.
+NDVI 16-day composite we have approximately 2 images per month.
 Therefore to simplify the process we should take the average NDVI value
 (per pixel) each month. To do this we can first `group_by(year,month)`
 and then call summarise. Remember if we just called `group_by(month)` it

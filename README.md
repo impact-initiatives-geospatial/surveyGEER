@@ -91,8 +91,6 @@ AOI_grid_layer_name <- NULL
 hex_diameter <- 15000 # 15 km set as default diameter for hexagon
 
 surveyGEER:::aoi_or_grid_warning()
-#> Warning in surveyGEER:::aoi_or_grid_warning(): You have not provided an AOI or
-#> GRID Layer - using data in package for example (SOM boundary)
 ```
 
 ### Load libraries/Data
@@ -101,23 +99,11 @@ surveyGEER:::aoi_or_grid_warning()
 library(surveyGEER)
 library(rgee)
 library(tidyrgee)
-#> 
-#> Attaching package: 'tidyrgee'
-#> The following object is masked from 'package:rgee':
-#> 
-#>     ee_extract
-#> The following object is masked from 'package:stats':
-#> 
-#>     filter
 library(sf)
-#> Linking to GEOS 3.9.1, GDAL 3.2.1, PROJ 7.2.1; sf_use_s2() is TRUE
+library(tidyverse)
+devtools::load_all()
 
 ee_Initialize()
-#> -- rgee 1.1.2.9000 ---------------------------------- earthengine-api 0.1.295 -- 
-#>  v user: not_defined
-#>  v Initializing Google Earth Engine: v Initializing Google Earth Engine:  DONE!
-#>  v Earth Engine account: users/zackarno 
-#> --------------------------------------------------------------------------------
 
 
 modis_link <- "MODIS/006/MOD13Q1"
@@ -134,13 +120,12 @@ a grid based on your `AOI_layer_name`, `country_code`, and
 `hexagon_diameter` inputs.
 
 ``` r
-
-grid <- surveyGEER:::load_aoi_grid(aoi =AOI_layer_name,
+# debugonce(load_aoi_grid)
+grid <- load_aoi_grid(aoi =AOI_layer_name,
                            grid = AOI_grid_layer_name,
                            hex_diameter = hex_diameter,
                            country_code = country_code
                            )
-#> Warning in surveyGEER:::load_aoi_grid(aoi = AOI_layer_name, grid = AOI_grid_layer_name, : You have not provided an AOI or GRID Layer - will use package data (SOM boundary)
 ```
 
 ### Data Wrangling
@@ -173,37 +158,20 @@ easy to group, filter, composite(summarise) the `imageCollection`.
 
 To calculate a standard score (Z-score) for monthly data we first need
 to create a baseline. Therefore we filter the `imageCollection` to
-2000-2015. Then we group that data by month and summarise using the
-“mean” statistic. For every pixel this will calculate the “mean” NDVI
-for each month in years 2000-2015 resulting in imageCollection of 12
-images (1 per month). We then calculate the monthly baseline standard
-deviation (“sd”) the same way.
+2000-2015. Then we group that data by month and `summarise`, calculating
+a mean and standard deviation for each month. The result will store an
+`imageCollection` of 12 images (1 per month). Each image will have 2
+bands the `NDVI_mean` and `NDVI_sd`. Statistics are calculated at the
+pixel-level for each image.
 
 ``` r
 
 modis_ndvi_tidy <- as_tidyee(modis_ndvi)
 
-monthly_mean_baseline <- modis_ndvi_tidy |> 
+monthly_baseline <- modis_ndvi_tidy |> 
   filter(year %in% 2000:2015) |> 
   group_by(month) |> 
-  summarise(stat="mean")
-
-monthly_sd_baseline <- modis_ndvi_tidy |> 
-  filter(year %in% 2000:2015) |> 
-  group_by(month) |> 
-  summarise(stat="sd")
-```
-
-Now we have two 12 image `ImageCollection`s each with one band
-(“NDVI_mean”,“NDVI_sd”). We can join these bands using an `inner_join`.
-The common property that should be used for this band is “month” since
-we want the monthly mean and standard deviation for each month to be
-aligned
-
-``` r
-monthly_baseline <- monthly_mean_baseline |> 
-  inner_join(y= monthly_sd_baseline, by = "month")
- 
+  summarise(stat=list("mean","sd"))
 ```
 
 Now that we have our baseline let’s calculate the the average monthly
@@ -212,10 +180,10 @@ the `ImageCollection` to 2016-2022. Since we are working with the MODIS
 NDVI 16-day composite we have approximately 2 images per month.
 Therefore to simplify the process we should take the average NDVI value
 (per pixel) each month. To do this we can first `group_by(year,month)`
-and then call summarise. Remember if we just called `group_by(month)` it
-would reurn 12 images with 1 monthly average value for the entire time
-period of 2022-2012. By grouping by year and month we get the average
-monthly value for each year!
+and then call `summarise`. Remember if we just called `group_by(month)`
+it would return 12 images with 1 monthly average value for the entire
+time period of 2022-2012. By grouping by year and month we get the
+average monthly value for each year!
 
 ``` r
 ndvi_recent_monthly <- modis_ndvi_tidy |> 
@@ -226,11 +194,14 @@ ndvi_recent_monthly <- modis_ndvi_tidy |>
   )
 ```
 
-Since i want to eventually combine the baseline `NDVI_mean`, `NDVI_sd`
-with these new monthly means. I will rename the recent monthly band to
-`NDVI` so that we do not have duplicate band names. I have not yet
-written a `rename` method (will do soon), but do have a `select` method
-which is flexible enough to rename at the same time.
+Since I know I want to eventually combine the baseline stats calculated
+previously (`NDVI_mean`, `NDVI_sd`) with these new monthly means ,I need
+to rename the band produced in this new summary. By default the
+band_name is written as: `original band names` + `_` + `stat`. To avoid
+duplicate band names later when joining I will rename the band names in
+`ndvi_recent_monthly` from `NDVI_mean` just to `NDVI`. We can do this
+with the select method just by supplying a name (will be adding a pure
+`rename` function soon).
 
 ``` r
 ndvi_recent_renamed <- ndvi_recent_monthly |> 
@@ -249,13 +220,18 @@ ndvi_recent_and_baseline<- inner_join(x = ndvi_recent_renamed,
 ```
 
 Now we have all the necessary ingredients to calculate a standard score
-(Z-score). Below you get another chance to view some of trickier
-`rgee`/`GEE` syntax. This type of calculation has not yet been included
-in `tidyrgee` (coming soon), so we have to use this syntax for the time
-being. `tidyrgee` is being developed to be inter-operable with `rgee`.
-Therefore we have developed simple functions such as `as_ee` to convert
-the `tidyee` class object back to `ee$ImageCollection` so that any
-`ee$ImageCollection` methods from `rgee` will be available.
+(Z-score). Below you get another opportunity to view some of trickier
+`rgee`/`GEE` syntax. This `expression` functionality has not yet been
+adapted/wrapped in `tidyrgee` (coming soon) so using the `rgee` syntax
+is still our only option. This is why a basic understanding of `GEE` and
+`rgee` is still quite handy.
+
+`rgee` cannot handle `tidyee` classes, therefore we need to convert the
+object back to the `ee$ImageCollection` format `rgee` was written for.
+Luckily `tidyrgee` is being developed to be inter-operable with `rgee`
+and provides simple helper functions such as `as_ee` for this type of
+conversion. After running `as_ee` we have access to all the methods
+available in `rgee/GEE`.
 
 ``` r
 ndvi_recent_baseline_imageCol <- ndvi_recent_and_baseline |> 
@@ -277,3 +253,147 @@ ndvi_zscore<- ndvi_recent_baseline_imageCol$map(
 ```
 
 ### Zonal stats per hexagon
+
+`ndvi_zscore` is now an `ee$ImageCollection` class object. We can easily
+convert back to `tidyee` with `as_tidyee()`. However, the zonal
+statistics tool `ee_extract_tidy()` works on both on
+`ee$ImageCollection` and `tidyee`. Just for ease of filtering and
+selecting let’s convert it back to `tidyee`
+
+Zonal statistics are heavery computationally expensive calculations. For
+example I ran the stats to calculate the median value of all 3 bands for
+every hexagon grid () for every month in the current composite
+collection (76 images) and it to 160 minutes. Therefore, let’s do some
+pre-processing so we only extract exactly what we need:
+
+-   we are only really interested in the `z_score` band so let’s select
+    that
+-   we are only really interested 2021 onwards so let’s filter the
+    object to everything from 2021 onwards
+
+``` r
+ndvi_z <- as_tidyee(ndvi_zscore)
+
+#
+ndvi_z_pre_processed <- ndvi_z |> 
+  filter(year>=2021) |> 
+  select("NDVI_z_score")
+```
+
+``` r
+leaflet::leaflet(grid ) |>
+  leaflet::addTiles() |> 
+  leaflet::addPolygons()
+```
+
+You should run `?ee_extract_tidy` to check all the optional parameters.
+It is important to include the scale of the image/imageCollection. If
+you are using a large `featureCollection` or sf spatial object you will
+need to adjust the `via` argument. I usually have best luck with
+`via="drive"`. The amount of time to perform an extraction can vary due
+to computations in the cloud, but as a reference point this example
+(3509 15 km diameter grids) took 232 seconds. If your grid covers the
+bounding box of your study area, it is probably a good idea to clip it
+to the area of study polygon to avoid unnecessary computations and save
+time.
+
+``` r
+# 9591.06 /60
+
+# as_tidyee(ndvi_zscore)
+
+system.time(
+  grid_with_ndvi <- ndvi_z_pre_processed |> 
+  ee_extract_tidy(y = grid,stat = "mean",scale = 250,via = "drive")
+)
+```
+
+Now let’s prep the chirps data for extraction. First convert it to
+tidyee format so we can leverage the easy filter/summarise methods
+
+``` r
+# get cummulative rainfall for each year on record
+chirps_tidy <- as_tidyee(chirps)
+```
+
+Let’s take the entire daily record from 1981-current and extract the
+yearly precipitation for each year at the pixel level. Since each pixel
+represents daily rainfall (mm) we can just group the images by year and
+sum them to get annual rainfall.
+
+``` r
+chirps_annual_precip <- chirps_tidy |> 
+  select("precipitation") |> 
+  group_by(year) |> 
+  summarise(
+    stat="sum"
+  )
+```
+
+Next let’s again use the `ee_extract_tidy` function to extract these
+yearly values. Conceptually we are using our grid to perform zonal
+statistics on each image (1 per year). the output is a long format tidy
+data frame with all the median yearly values (1 per hex per year). This
+took about:
+
+``` r
+system.time(
+yearly_rainfall_hex <-   chirps_annual_precip |> 
+  ee_extract_tidy(y = grid,
+                  stat = "median",
+                  scale = 5500,
+                  via = "drive")
+)
+```
+
+``` r
+yearly_rainfall_hex_1981_2021<- yearly_rainfall_hex |> 
+  filter(lubridate::year(date)!=2022) |> 
+  dplyr::group_by(uid) |> 
+  dplyr::mutate(
+    record_low = value==min(value),
+    record_high= value==max(value)
+  ) 
+
+record_lows_2021 <- yearly_rainfall_hex |> 
+  filter(record_low) |> 
+  filter(date=="2021-01-01")
+
+record_highs_2021 <- yearly_rainfall_hex |> 
+  filter(record_high) |> 
+  filter(date=="2021-01-01")
+
+
+record_lows_2021 <- yearly_rainfall_hex |> 
+  # filter out 2022 since it is not yet  complete
+  filter(lubridate::year(date)!=2022) |> 
+  # group by grid uid
+  dplyr::group_by(uid) |>
+  # grab two lowest annual records
+  dplyr::slice_min(n = 2,order_by = value) |> 
+  # calculate the difference in the two lowest annual values 
+  # and specify which is the lowest with T/F
+  mutate(
+    lower_by = max(value)- min(value),
+    record_low = value==min(value)
+  ) |> 
+  ungroup() |> 
+  # filter just the lowest record
+  filter(record_low) |> 
+  mutate(
+    date= lubridate::year(date)
+  ) |> 
+  #now filter just to year of interest 2021 to 
+  # see where that year had all time lowest annual value on record
+  filter(date==2021)
+```
+
+``` r
+# join record lows to original hex object by "uid" to make spatial again
+# then filter out any hex that does not have record breaking value
+# change remaining hex's to centroid points so that we can map as propotional bubbles.
+record_low_centroids<- grid |> 
+  dplyr::left_join(record_lows_2021) |> 
+  filter(record_low==T) |> 
+  st_centroid() 
+```

@@ -15,7 +15,7 @@ epsg_lookup <- function(){
     "eth",     32637L, "WGS 84/UTM zone 37N",
     "col",         NA,                      NA,
     "afg",         NA,                      NA,
-    "irq",         NA,                      NA,
+    "irq",     32637L, "WGS 84 / UTM zone 37N",
     "syr",         NA,                      NA,
     "leb",         NA,                      NA,
     "drc",         NA,                      NA,

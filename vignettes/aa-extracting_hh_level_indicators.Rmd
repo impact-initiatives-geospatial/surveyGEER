@@ -1,0 +1,512 @@
+---
+title: "RS indicators to the HH"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{aa-extracting_hh_level_indicators}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+## RS Indicators Theory
+
+Where do we draw a buffer where do we extract to point?
+- Rainfall derived indicators: These are from chirps at 5000 m resolutions. If a pixel is 5000 m large then I think extracting the pixel value at the HH location is justified. These include:
+  + rs.rain_prev_3_months: 
+
+```{r setup}
+library(surveyGEER)
+library(tidyrgee)
+library(rgee)
+library(sf)
+library(tidyverse)
+
+ee_Initialize()
+```
+
+load RS sources
+```{r}
+chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+chirps <- ee$ImageCollection(chirps_link)
+chirps_tidy <- as_tidyee(chirps)
+```
+
+an important first decision is choosing what date you want to consider for the assessment. This could be the median date, the minimum date or the maximum date... lets go with median here
+```{r}
+survey_date_col <- "date_assessment"
+```
+
+```{r}
+
+hh <- readxl::read_xlsx("data/sample_hh_data.xlsx","hh")
+
+hh <- hh |> 
+  filter(consent=="yes")
+
+hh |> glimpse()
+hh$`problems_water_quality/no_problems`
+hh_coordinates <- hh |> 
+  select(matches("longitude|latitude")) |> colnames() |> rev()
+hh<- hh |> 
+  filter(!is.na(!!sym(hh_coordinates[1])))
+```
+
+looking for patterns by q
+```{r}
+hhsf <- hh |> 
+  st_as_sf(coords=c(hh_coordinates[1],hh_coordinates[2]), crs=4326)
+hhsf_comp <- hhsf |> 
+  mutate(water_probs =if_else(`problems_water_quality/no_problems`==1,"green","red"))
+library(rgeoboundaries)
+irq_adm2 <-  geoboundaries(c("Iraq"), "adm2")
+irq_adm1 <-  geoboundaries(c("Iraq"), "adm1")
+
+
+point_map <-  function(df, col){
+  num_levels <- forcats::fct_explicit_na(df[[col]]) |> 
+    forcats::fct_unique() |> 
+    length()
+  pal <- colorFactor(topo.colors(num_levels),df[[col]])
+  leaflet(df) |> 
+  addTiles() |> 
+  addPolygons(data=irq_adm2) |> 
+  addCircleMarkers(color = ~pal(df[[col]]),label=df[[col]])
+  
+}
+hh$`available_difficulties/walking` |> janitor::tabyl()
+point_map(hhsf, col = "available_difficulties/walking")
+hh$not_eating_freq |> janitor::tabyl()
+factpal <- colorFactor(topo.colors(4),hhsf_comp$not_eating_freq)
+# palCol <- colorFactor(palette = 'RdGn', hhsf_comp$hungry)
+hh |> count(hungry)
+leaflet(hhsf_comp) |> 
+  addTiles() |> 
+  addPolygons(data=irq_adm2) |> 
+  addCircleMarkers(color = ~factpal(not_eating_freq),label=~not_eating_freq)
+```
+
+```{r}
+hhsf <- hh |> 
+  select(hh_coordinates,matches("uuid"),all_of(survey_date)) |> 
+  st_as_sf(coords=c(hh_coordinates[1],hh_coordinates[2]), crs=4326)
+
+windows();hh |> 
+  ggplot(aes(x=date_assessment))+
+  geom_histogram(stat="count")+
+  coord_flip()
+hh$date_assessment |> range()
+```
+
+```{r}
+survey_date_benchmark <- surveyGEER:::median_survey_date(hh,survey_date_col)
+```
+
+lets see if we can calculate cumulative preciptiation over the three months prior
+```{r}
+start_month <- lubridate::month(survey_date_benchmark)-2
+survey_year <-  lubridate::year(survey_date_benchmark)
+
+chirps_prev_3mo_sum <- chirps_tidy |> 
+  filter(
+    year==survey_year,
+    month %in% c(start_month:lubridate::month(survey_date_benchmark ))
+    ) |> 
+  summarise(stat="sum")
+```
+
+# how long to upload `r nrow(hh)` points to sf? only 24 seconds- promising
+```{r}
+system.time(
+  hh_ee <- rgee::sf_as_ee(hhsf)
+  )
+
+```
+how long to extact precip.... usertime =15s, ellaped = 114.16
+```{r}
+
+system.time(
+  stat_prev_3_month_precip <- chirps_prev_3mo_sum |> 
+    ee_extract(y=hhsf,
+               stat = "median",
+               via="drive",
+               scale=5000,
+               sf=F,
+               )
+  )
+
+```
+
+how about with a buffer
+```{r}
+
+hhsf_buffered <- hhsf |> 
+  reach_reproject_utm(country_code = "irq") |> 
+  st_buffer(dist = 500) |> 
+  st_transform(crs=4326)
+  
+# started inner ee_extract @ 10:33 am  
+system.time(
+  stat_prev_3_month_precip <- chirps_prev_3mo_sum |> 
+    ee_extract(y=hhsf_buffered,
+               stat = "median",
+               via="drive",
+               scale=5000,
+               sf=F
+               )
+  )
+
+```
+
+
+```{r}
+
+
+
+#'accumulate bands to list
+#' @description  Function to be used with [rgee] `iterate`  to return a list of images containing the image
+#' @param img ee Image class object
+#' @param lst list containing first img to iterate over
+#' @return ee List of images with each item containing the successive accumulation of
+
+
+
+
+accumulate_img_bands_to_list <-  function(img,lst){
+  previous <- ee$Image(ee$List(lst)$get(-1))
+  added <- img$add(previous)$
+    set('system:time_start', img$get('system:time_start'))
+  return(
+    # ee$List(list(lst))$add(added)
+    ee$List(list(lst))$add(ee$List(added))
+
+  )
+}
+
+
+#' accumulate_ic_band
+#' @description Creates a cumulative precipitation [rgee] `ee$ImageCollection` with each all pixels in each consecutive image containing the sum of all previous values
+#' @param ic `ee$ImageCollection` object with user-defined start and end-date
+#' @param band band to accumulate value from
+#' @return returns `ee$ImageCollection` with each contained image containing the successive addition/accumulation of pixel-level values of chosen band.
+#' @details user should carefully decide start and end date for accumulation. This is currently really only designed for assessing seasonal accumulations
+#' @export
+
+#' @examples \dontrun{
+#'
+#' # load libraries
+#' library(easyrgee)
+#' library(rgee)
+#' ee_Initialize()
+#'
+#' chirps <-  ee$ImageCollection("UCSB-CHG/CHIRPS/DAILY")$filterDate("2016-01-01","2016-12-31")
+# # run run function
+#' precip_cumulative<- ee_accumulate_band_ic(ic = chirps, band = "precipitation")
+#'
+#' }
+
+ee_accumulate_band_ic <-  function(ic,band){
+  # should think about "first" definition
+  first <- ee$List(list(ee$Image(ic$select(band)$first())))
+  accumulated_img_list <-  ic$iterate(accumulate_img_bands_to_list,first)
+  ee$ImageCollection$fromImages(ee$List(accumulated_img_list)$flatten())
+}
+
+
+
+
+#' Title
+#'
+#' @param x 
+#' @param time 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
+library(rgee)
+library(tidyrgee)
+# https://www.youtube.com/watch?v=Gok9zsA_RFk
+# https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-drought-monitoring-spi/in-detail
+ee_Initialize()
+chirps_ic<- ee$ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+chirps_tidy<- as_tidyee(chirps_ic)
+
+spi <- function(x,reference_months){
+  x_monthly <- chirps_tidy |> 
+    filter(year%in%c(2021)) |> 
+    group_by(year, month) |> 
+    summarise(stat="sum")
+  x_monthly$ee_ob |> ee_print()
+  x_monthly_accumulated <- ee_accumulate_band_ic(x_monthly$ee_ob,band = "precipitation_sum")
+  x_monthly_accumulated |> ee_get_date_ic()
+}
+
+ee_floored_date_list_to_map <- function(x,month_lag){
+  # # get list of floored month dates
+  # date_list <- lubridate::as_date(
+  #   unique(lubridate::floor_date(x$vrt$date,unit = "month"))
+  #   ) |> 
+  #   as.character() 
+  # # remove first month and
+  # time_list_date <- date_list[-1] |> rev()
+  date_range <- x$vrt |>
+    dplyr::arrange(date) |>
+    dplyr::pull(date) |>
+    range() |>
+    lubridate::as_date() |>
+    as.character()
+  latest_img_date <-  ee$Date(date_range[2])
+  first_img_date <-  ee$Date(date_range[1])
+  number_months <- (latest_img_date$difference(first_img_date, 'month'))$divide(ee$Number$parse(as.character(month_lag)))
+  month_seq_list <-  ee$List$sequence(0,number_months)
+
+  time_list_date = month_seq_list$map(
+    rgee::ee_utils_pyfunc(function (month){
+      zero <-  ee$Number(0)
+      delta <-  (zero$subtract(month))$multiply(ee$Number$parse(as.character(month_lag)))
+      latestDate = latest_img_date$advance(1, 'day')
+      return(latestDate$advance(delta, 'month'))
+    }
+    )
+  )
+  return(time_list_date)
+}
+  
+
+ee_floored_date_list_to_map(x = chirps_tidy,month_lag = 2)$getInfo()
+debugonce(ee_lag_stat)
+ee_lag_stat(x = chirps_tidy,month_lag = 1)$getInfo()
+
+ee_lag_stat <-  function(x,stat="sum", month_lag){
+  ic <- x$ee_ob
+  time_list_date <- ee_floored_date_list_to_map(x=x,month_lag = month_lag)
+  ee_reducer <- tidyrgee:::stat_to_reducer_full(fun = stat)
+  
+  summarised_composite_ic = ee$ImageCollection$fromImages(
+    time_list_date$map( rgee::ee_utils_pyfunc(function (monthly_sum){
+      startTime <-  ee$Date(monthly_sum)$advance(ee$Number$parse(as.character(month_lag))$multiply(-1), 'month')
+      endTime <- ee$Date(monthly_sum)
+      filtered_ic <-  ic$filterDate(startTime, endTime)
+      # clippedCHIRPS = filtered_ic$map(function(clip){return clip.clip(AOI)});
+      imageAmount = filtered_ic$size()
+      summary_composite_img = ee_reducer(filtered_ic)$
+        set('Used_Images', imageAmount)$
+        set('Start_Date', ee$Date(filtered_ic$first()$get('system:time_start')))$
+        set('End_Date', ee$Date(filtered_ic$limit(1, 'system:time_end', FALSE)$first()$get('system:time_end')))$
+        set('system:time_start', filtered_ic$first()$get('system:time_start') )$
+        set('system:time_end', filtered_ic$limit(1, 'system:time_end', FALSE)$first()$get('system:time_end'))
+      
+      time <- ee$Date(summary_composite_img$get('system:time_end'))$
+        difference(ee$Date(summary_composite_img$get('system:time_start')), 'month')$
+        round()
+
+      summary_composite_img_w_props <-  summary_composite_img$set('Observed_Months', time)
+
+      return(
+        ee$Algorithms$If(
+          time$gte(ee$Number$parse(as.character(month_lag))),
+          summary_composite_img_w_props)
+      )
+      }
+      )
+      )
+)
+  
+  summarised_composite_ic = ee$ImageCollection(summarised_composite_ic$copyProperties(ic))
+  return(summarised_composite_ic)
+}
+
+
+  # //If the SPI should be calculated for less than 12 months, the DOY information have to be used
+  # //to find the correct images.
+calc_mean_sd_baseline <- function(ic){
+    # //Calculate Statistics
+  mean_sd_stats <-  ic$map(function(toStats){
+    startDOY  <-  ee$Date(toStats$get('system:time_start'))$getRelative('day', 'year')
+    endDOY <- ee$Date(toStats$get('system:time_end'))$getRelative('day', 'year')
+    collectionForStats = ic$
+      filter(ee$Filter$calendarRange(startDOY, endDOY, 'day_of_year'))$
+      reduce(ee$Reducer$stdDev()$combine(ee$Reducer$mean(), NULL, TRUE))
+    return(toStats$addBands(collectionForStats))
+  })
+  return(mean_sd_stats)
+}
+  
+
+
+ee_spi <-  function(x, month_lag){
+  cat("calculating lag stats")
+  ic_lag_summarised <- ee_lag_stat(x, stat = "sum",month_lag)
+  ic_with_baseline_stats<- calc_mean_sd_baseline(ic_lag_summarised)
+
+  ic_with_spi <- ic_with_baseline_stats$map(
+    function(img){
+      standard_score <- img$expression(
+      "float((precipitation-precipitation_mean)/(precipitation_stdDev))",
+      opt_map= list(precipitation= img$select("precipitation_sum"),
+                    precipitation_mean= img$select("precipitation_sum_mean"),
+                    precipitation_stdDev= img$select("precipitation_sum_stdDev")
+      )
+    )$rename("SPI")
+    img$addBands(standard_score)
+    }
+  )
+  # ic_with_spi |> ee_print()
+  return(ic_with_spi)
+  # ck <- as_tidyee(ic_with_spi)
+}
+bla <- ee_spi(x = chirps_tidy,month_lag = 3)
+as_tidyee(bla)
+spi_image <- ee$Image(bla$filterDate("2022-04-01","2022-05-01")$first())
+syrAdm3  <-  ee$FeatureCollection("users/reachsyriagee/Admin_Areas/syr_adm3")$
+  select(list('admin1Name', 'admin2Name', 'admin3Name', 'admin3Pcod')) 
+bla |> ee_print()
+spi_viz <- list(min=-4,
+     max= 4,
+     palette= c("#d53e4f", "#fc8d59", "#fee08b", "#ffffbf", "#e6f598", "#99d594", "#3288bd")
+)
+Map$addLayer(eeObject = spi_image$
+               select("SPI")$
+               clip(syrAdm3),
+             visParams =spi_viz)
+
+
+
+
+var AOI = syrAdm3.geometry().dissolve()
+
+
+var new_date = ee.Date.fromYMD(2022, month, 1)
+
+```
+
+above is from UNOSAT, i don't think it is really correct as it will only calculate the SPI
+for certain months based on what month_lag you choose.... should be able to calculate SPI for any month
+no matter what the lag is.... this is working
+
+```{r}
+ee_get_dates_to_map <-  function(x, month_lag=14){
+  
+  # get all unique dates floored to month
+  month_vec <- x$vrt |>
+    dplyr::arrange(date) |>
+    dplyr::pull(date) |>
+    lubridate::as_date() |>
+    lubridate::floor_date(unit = "month") |> 
+    unique()
+  
+  # can only lag to the month_lag + 1 th earliest record 
+  month_vec_laggable <- month_vec[-c(1:month_lag)] |>
+    rev()
+  
+  # can't simply make ee$List from a vector of dates 
+  # therefore we can use these two inputs to create an ee$List of dates
+  month_date_latest_image <- ee$Date(as.character(month_vec_laggable[1]))
+  num_mo_sequence <- ee$List$sequence(0,length(month_vec_laggable))
+  
+   time_list_date = num_mo_sequence$map(
+    rgee::ee_utils_pyfunc(function (num_mo){
+      zero <-  ee$Number(0)
+      delta <-  (zero$subtract(num_mo))
+      latestDate = month_date_latest_image$advance(1, 'day')
+      return(latestDate$advance(delta, 'month'))
+    }
+    )
+  )
+  return(time_list_date)
+  
+}
+ee_month_lag_stat(x=chirps_tidy,month_lag = 3)$size()$getInfo()
+ee_month_lag_stat <-  function(x,stat="sum", month_lag){
+  # month_date_list <- ee_floored_date_list_to_map(x,month_lag)
+  month_date_list <- ee_get_dates_to_map(x,month_lag)
+
+  ee_reducer <- tidyrgee:::stat_to_reducer_full(fun = stat)
+  ic <- x$ee_ob
+  summarised_composite_ic = ee$ImageCollection$fromImages(
+    month_date_list$map( rgee::ee_utils_pyfunc(function (monthly_sum){
+      startTime <-  ee$Date(monthly_sum)$advance(ee$Number$parse(as.character(month_lag))$multiply(-1), 'month')
+      endTime <- ee$Date(monthly_sum)
+      filtered_ic <-  ic$filterDate(startTime, endTime)
+      imageAmount = filtered_ic$size()
+      summary_composite_img = ee_reducer(filtered_ic)$
+        set('Used_Images', imageAmount)$
+        set('Start_Date', ee$Date(filtered_ic$first()$get('system:time_start')))$
+        set('End_Date', ee$Date(filtered_ic$limit(1, 'system:time_end', FALSE)$first()$get('system:time_end')))$
+        set('system:time_start', filtered_ic$first()$get('system:time_start') )$
+        set('system:time_end', filtered_ic$limit(1, 'system:time_end', FALSE)$first()$get('system:time_end'))
+      
+      time <- ee$Date(summary_composite_img$get('system:time_end'))$
+        difference(ee$Date(summary_composite_img$get('system:time_start')), 'month')$
+        round()
+
+      summary_composite_img_w_props <-  summary_composite_img$set('Observed_Months', time)
+
+      return(
+        ee$Algorithms$If(
+          time$gte(ee$Number$parse(as.character(month_lag))),
+          summary_composite_img_w_props)
+      )
+      }
+      )
+      )
+)
+  
+  summarised_composite_ic = ee$ImageCollection(summarised_composite_ic$copyProperties(ic))
+  return(summarised_composite_ic)
+  
+  
+}
+
+bla <- as_tidyee(summarised_composite_ic)
+bla |> 
+  group_by(month) |> 
+  summarise(
+    stat=list("sum","sd")
+  )
+
+if(month_lag>12){
+  month_vec <- x$vrt |>
+    dplyr::arrange(date) |>
+    dplyr::pull(date) |>
+    lubridate::as_date() |>
+    lubridate::floor_date(unit = "month") |> 
+    unique()
+  
+  # can only lag to the month_lag + 1 th earliest record 
+  month_vec_laggable <- month_vec[-c(1:month_lag)] |>
+    rev()
+  bla <- x$vrt |>
+    mutate(
+      floor_month=lubridate::floor_date(date,"month")
+    ) |> 
+    # select(floor_month) |> distinct()
+    # sele(year,month) |> 
+    select(floor_month) |> 
+    dplyr::distinct() |> 
+    mutate(uid= dplyr::row_number()) 
+  
+  for(y in unique(x$vrt$year)){
+    
+  }
+  
+  x$vrt %>% 
+  # group_by(ID) %>% 
+  mutate(g = cut(date, seq(min(date), max(date) , by="14 months")) %>% as.character) %>% 
+  ungroup %>%# dplyr::pull(g) |> unique()
+  mutate(g = group_indices(., g))
+  for(i in 1:length(month_vec_laggable)){
+    mtemp <- month_vec_laggable[i]
+    bla |> 
+      mutate(!!mtemp:=if_eles())
+  
+  }
+}
+
+```

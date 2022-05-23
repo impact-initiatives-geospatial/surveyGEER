@@ -1,5 +1,10 @@
 ---
-output: github_document
+title: "MODIS Standard Score and Chirps Precip Record Hex Map Code Template"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ba-modis-chirps-hex-map-templates}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->

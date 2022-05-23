@@ -1,0 +1,21 @@
+---
+title: "Resampling vs Buffering Around Point Location"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ab-resample-vs-buffering-investigation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Intro
+
+```{r setup}
+library(surveyGEER)
+```

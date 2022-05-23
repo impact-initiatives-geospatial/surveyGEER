@@ -13,3 +13,5 @@ data_share/*
 R/setup_geo_data.R
 vignettes/workflow.Rmd
 *.xlsx
+data/sample_hh_data.xlsx
+data/metadata.R

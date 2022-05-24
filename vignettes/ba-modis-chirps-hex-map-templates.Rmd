@@ -88,9 +88,8 @@ chirps <- ee$ImageCollection(chirps_link)
 ```
 The below function will either load your pre-made grid or will generate a grid based on your `AOI_layer_name`, `country_code`, and `hexagon_diameter` inputs.
 
-```{r example}
+```{r load_grid}
 
-# debugonce(load_aoi_grid)
 grid <- load_aoi_grid(aoi =AOI_layer_name,
                            grid = AOI_grid_layer_name,
                            hex_diameter = hex_diameter,

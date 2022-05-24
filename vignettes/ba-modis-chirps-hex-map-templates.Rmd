@@ -20,34 +20,7 @@ knitr::opts_chunk$set(
 
 ```
 
-# surveyGEER
 
-<!-- badges: start -->
-<!-- badges: end -->
-
-This project/package contains ready to go code templates utilizing `rgee` and `tidyrgee` to extract remote sensing data for statistical analysis and mapping. `rgee` is the R API for Google Earth Engine (GEE)and includes all of the GEE functionality available in the code editor with a syntax that parallels both the JavaScript and the Python GEE APIs. `tidyrgee` is a package currently under rapid development that wraps the `rgee` package to create a syntax parallel to the `tidyverse`/`dplyr`. The goal of `tidyrgee` is to simplify a lot of of the more complicated processes and concepts that are currently  necessary when solving problems using the original GEE syntax-based coding frameworks.  To learn more about `tidyrgee` please visit the [tidyrgee github page](https://github.com/r-tidy-remote-sensing/tidyrgee) where you can find vignettes, use-case tutorials, etc.
-
-The `surveyGEER` project package will provide templates using `tidyrgee`, eventually wrapping some of these processes into even larger functions specifically designed for REACH use-cases. The `tidyrgee` syntax  make remote sensing with GEE in R simple for any r/tidyverse user while `surveyGEER` specific wrappers will allow even beginner R-users to create standardized outputs.
-
-
-## Installation
-
-You can install the development version of surveyGEER like so:
-
-```{r,eval= F}
-devtools::install_github("impact-initiatives-geospatial/surveyGEER")
-```
-
-You can install the latest version of `tidyrgee` here:
-```{r,eval= F}
-devtools::install_github("r-tidy-remote-sensing/tidyrgee")
-```
-
-
-This package will hold templates and data-pipelines to extract remote sensing data using the `rgee` and new `tidyrgee` packages. Templates will be stored as vignettes in the package. I will provide one template in this readme to serve as an example for new users just visiting the page for the first time:
-
-
-## Working examples
 
 ### Hex Maps
 
@@ -78,6 +51,10 @@ If you only have **a** , then the script will automatically generate **b** based
 
 
 ```{r}
+write_outputs_to <-  "data/"
+extract_ndvi_to_hex <- c(T,F)[1]
+extract_precip_to_hex <- c(T,F)[1]
+
 country_code <- NULL
 AOI_layer_name <- NULL
 AOI_grid_layer_name <- NULL
@@ -247,14 +224,12 @@ You should run `?ee_extract_tidy` to check all the optional parameters. It is im
 
 
 ```{r}
-# 9591.06 /60
 
-# as_tidyee(ndvi_zscore)
-
-system.time(
+if(extract_ndvi_to_hex==T){
   grid_with_ndvi <- ndvi_z_pre_processed |> 
   ee_extract_tidy(y = grid,stat = "mean",scale = 250,via = "drive")
-)
+}
+
 ```
 
 
@@ -282,14 +257,14 @@ chirps_annual_precip <- chirps_tidy |>
 
 Next let's again use the `ee_extract_tidy` function to extract these yearly values. Conceptually we are using our grid to perform zonal statistics on each image (1 per year). the output is a long format tidy data frame with all the median yearly values (1 per hex per year). This took about:
 ```{r}
-system.time(
+if(extract_precip_to_hex){
 yearly_rainfall_hex <-   chirps_annual_precip |> 
   ee_extract_tidy(y = grid,
                   stat = "median",
                   scale = 5500,
                   via = "drive")
-)
 
+}
 ```
 
 
@@ -340,10 +315,39 @@ record_lows_2021 <- yearly_rainfall_hex |>
 ```{r}
 # join record lows to original hex object by "uid" to make spatial again
 # then filter out any hex that does not have record breaking value
-# change remaining hex's to centroid points so that we can map as propotional bubbles.
+# change remaining hex's to centroid points so that we can map as proportional bubbles.
 record_low_centroids<- grid |> 
   dplyr::left_join(record_lows_2021) |> 
   filter(record_low==T) |> 
   st_centroid() 
+
+
+if(!is.null(write_outputs_to)){
+  sf::st_write(obj = record_low_centroid,dsn = record_low_centroids,layer = "precip_record_low.shp")
+}
+```
+
+### QGIS Templates
+
+We have provided QGIS templates in the `map_templates` folder of this directory. Once the data has been extracted and save to the `data` folder in the project you should open up the either of the map templates. 
+
+To use the map templates you must link the data sources to the layers. Once linked the symoblogy will automatically be set. To use these templates you should also have some layers of your own. If you put all of you GIS layers into the data folder when you link one the rest will auto-link. You should put the following layers into the data folder:
+
+1. Admin 1 boundary (usually OCHA or UNDP)
+2. Admin 2 boundary (usually OCHA or UNDP)
+3. Hexagon grid (either pre-existing or created by you above)
+4. NDVI layer (Hexagon output by script above)
+5. Precipitation layer (point file output by script above)
+6. World Adm0 boundaries - downloaded from [natural earth](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/)
+
+
+```{r}
+knitr::include_graphics("man/figures/qgis_layers_panel.png")
+```
+
+
+```{r}
+
+knitr::include_graphics("man/figures/qgis_layers_panel.png")
 
 ```

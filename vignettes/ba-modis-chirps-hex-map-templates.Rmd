@@ -204,12 +204,13 @@ Zonal statistics are heavery computationally expensive calculations. For example
 - we are only really interested 2021 onwards so let's filter the object to everything from 2021 onwards
 ```{r}
 
-ndvi_z <- as_tidyee(ndvi_zscore)
+ndvi_z<- as_tidyee(ndvi_zscore)
 
-#
-ndvi_z_pre_processed <- ndvi_z |> 
-  filter(year>=2021) |> 
+ndvi_z_pre_processed <- ndvi_z |>
+  filter(year>=2021) |>
   select("NDVI_z_score")
+
+
 ```
 
 
@@ -226,7 +227,7 @@ You should run `?ee_extract_tidy` to check all the optional parameters. It is im
 
 if(extract_ndvi_to_hex==T){
   grid_with_ndvi <- ndvi_z_pre_processed |> 
-  ee_extract_tidy(y = grid,stat = "mean",scale = 250,via = "drive")
+  ee_extract_tidy(y = grid |> slice(1:2),stat = "mean",scale = 250,via = "drive")
 }
 
 ```

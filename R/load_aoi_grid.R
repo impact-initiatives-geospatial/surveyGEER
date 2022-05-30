@@ -54,17 +54,19 @@ load_aoi_grid <-function(aoi=NULL,
   }
   if(is.null(grid)&!is.null(aoi)){
     cat("Since you have just supplied an AOI - will load that and create a grid of",hex_diameter,"\n")
-    aoi <- sf::st_read("data/",aoi) |>
+    aoi <- sf::st_read("data",aoi) |>
       summarise() |>
       reach_reproject_utm(country_code = country_code)
     grid_on_bbox <- sf::st_make_grid(aoi,cellsize = hex_diameter,square = F) |>
-      st_transform(crs=st_crs(aoi))
+      st_transform(crs=st_crs(aoi)) |>
+      st_sf()
     grid_final <- grid_on_bbox[aoi,]
   }
   grid_final |>
     st_as_sf() |>
-    dplyr::mutate(uid=dplyr::row_number()) |>
-    dplyr::rename(geometry="x")
+    dplyr::rename(geometry=1) |>
+    dplyr::mutate(uid=dplyr::row_number())
+
 
 
 }

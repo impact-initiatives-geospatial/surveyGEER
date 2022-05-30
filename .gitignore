@@ -15,3 +15,4 @@ vignettes/workflow.Rmd
 *.xlsx
 data/sample_hh_data.xlsx
 data/metadata.R
+^data/eth

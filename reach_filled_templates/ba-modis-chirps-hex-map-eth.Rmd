@@ -108,7 +108,10 @@ grid <- load_aoi_grid(aoi =AOI_layer_name,
 grid_wgs84 <- grid |> st_transform(crs=4326)
 leaflet::leaflet(grid_wgs84) |>
   leaflet::addTiles() |> 
-  leaflet::addPolygons(data=aoi_grid_wgs)
+  leaflet::addPolygons(data=grid_wgs84)
+
+
+
 
 ```
 
@@ -245,7 +248,11 @@ if(extract_ndvi_to_hex==T){
 
 grid_w_ndvi_spatial <- grid |> 
   left_join(grid_with_ndvi)
+```
 
+
+write output
+```{r}
 if(!is.null(write_outputs_to)){
   hex_file_path_name <- paste0(write_outputs_to,
                                "reach_",

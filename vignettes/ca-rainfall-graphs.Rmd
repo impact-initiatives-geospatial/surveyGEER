@@ -1,0 +1,225 @@
+---
+title: "ca-rainfall-graphs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ca-rainfall-graphs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(tidyverse)
+library(sf)
+library(tidyrgee)
+ee_Initialize()
+
+
+con <- DBI::dbConnect(RPostgres::Postgres(),
+                      dbname = "global_gdb",
+                      user      = rstudioapi::askForPassword("Database user"),
+                      password      = rstudioapi::askForPassword("Database password"),
+                      port     = 5432)
+
+# DBI::dbListTables(con)
+admin1 <- st_read(con,"eth_adm1")
+admin1 <- admin1 |> 
+  rename(
+    geometry="geom"
+  )
+
+```
+
+
+```{r}
+
+chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+chirps <- ee$ImageCollection(chirps_link)
+chirps_tidy <- as_tidyee(chirps)
+
+
+```
+
+
+```{r}
+chirps_20_22_monthly <- chirps_tidy |> 
+  filter(year %in% c(2020,2021, 2022)) |> 
+  group_by(year,month) |> 
+  summarise(stat="sum")
+
+
+
+baseline_yrmo_precip <- chirps_tidy |> 
+  filter(year %in% c(1981:2016)) |> 
+  group_by(year,month) |> 
+  summarise(stat="sum")
+
+baseline_avg_monthly <- baseline_yrmo_precip |> 
+  group_by(month) |> 
+  summarise(stat="mean")
+```
+
+
+```{r}
+admin1 |> janitor::tabyl(date)
+#start at 420 -f takes to long we can drop a sample
+chirps_20_22_monthly_w_historical <- chirps_20_22_monthly |> 
+  inner_join(baseline_avg_monthly,by="month")
+
+system.time(
+monthly_precip_zonal_admin1 <- chirps_20_22_monthly_w_historical |> 
+  ee_extract_tidy(y = admin1,scale=5500, stat="median",via = "drive")
+)
+
+
+monthly_precip_zonal_admin1 |> 
+  glimpse()
+
+
+# going toneed pivot values longer
+```
+
+
+
+line graph is a little busy
+```{r}
+monthly_precip_zonal_admin1 |> 
+  select(adm1_en,parameter, date,value) |> 
+  filter(date>="2021-01-01") |> 
+  mutate(
+    parameter= 
+      if_else(parameter=="precipitation_sum_mean","baseline","current")
+    ) |> 
+  ggplot(aes(x=date, y= value,color=parameter))+
+  geom_line()+
+  scale_x_date(breaks = "month",date_labels = "%b")+
+  facet_wrap(~adm1_en)+
+  theme_bw()+
+  ggtitle(label = "Monthly Precip (mm) - CHIRPS",
+          subtitle = "June 21' - April 22' (baseline: monthly average 1981-2016)")+
+  theme(
+    axis.text.x = element_text(angle=90)
+  )
+
+monthly_precip_zonal_admin1 |> 
+  select(adm1_en,parameter, date,value) |> 
+  filter(adm1_en=="Oromia") |> 
+  filter(date>="2021-01-01") |> 
+  mutate(
+    parameter= 
+      if_else(parameter=="precipitation_sum_mean","baseline","current")
+    ) |> 
+  ggplot(aes(x=date, y= value,color=parameter))+
+  geom_line()+
+  scale_x_date(breaks = "month",date_labels = "%b")+
+  # facet_wrap(~adm1_en)+
+  theme_bw()+
+  labs(y= "Precipitation (mm)")+
+  ggtitle(label = "Oromia Monthly Precipitaiton (mm) - CHIRPS",
+          subtitle = "Jan 21' - April 22' (baseline: monthly average 1981-2016)")+
+  theme(
+    axis.text.x = element_text(angle=90),
+    axis.title.x = element_blank()
+  )
+
+
+monthly_precip_zonal_admin1 |> 
+  ggplot(aes(x=date,y=value,color=adm1_en))+
+  geom_line()
+
+
+monthly_precip_zonal_admin1 |> 
+  ggplot(aes(x=date,y=value,color=adm1_en))+
+  geom_line()
+
+
+
+```
+
+
+# would cumulative rain fall be more interesting?
+```{r}
+chirps_ic_2020 <- chirps_tidy |> 
+  filter(year ==2020) |> 
+  as_ee()
+
+chirps_ic_2021 <- chirps_tidy |> 
+  filter(year ==2021) |> 
+  as_ee()
+
+chirps_ic_2022 <- chirps_tidy |> 
+  filter(year ==2022) |> 
+  as_ee()
+
+chirps_cum_2020<- ee_accumulate_band_ic(ic = chirps_ic_2020,band = "precipitation")
+chirps_cum_2020 <- chirps_cum_2020 |> as_tidyee()
+
+chirps_cum_2021<- ee_accumulate_band_ic(ic = chirps_ic_2021,band = "precipitation")
+chirps_cum_2021 <- chirps_cum_2021 |> as_tidyee()
+
+chirps_cum_2022<- ee_accumulate_band_ic(ic = chirps_ic_2022,band = "precipitation")
+chirps_cum_2022 <- chirps_cum_2022 |> as_tidyee()
+
+chirps_cum_2020_monthly <- chirps_cum_2020 |>
+  group_by(month) |> 
+  summarise(stat="sum")
+
+chirps_cum_2021_monthly <- chirps_cum_2021 |>
+  group_by(month) |> 
+  summarise(stat="sum")
+
+chirps_cum_2022_monthly <- chirps_cum_2022 |>
+  group_by(month) |> 
+  summarise(stat="sum")
+
+system.time(
+monthly_cum_20 <- chirps_cum_2020 |> 
+  ee_extract_tidy(y = admin1,scale=5500,via = "drive")
+)
+
+monthly_cum_21 <- chirps_cum_2021_monthly |> 
+  ee_extract_tidy(y = admin1,scale=5500,via = "drive")
+
+monthly_cum_22 <- chirps_cum_2022_monthly |> 
+  ee_extract_tidy(y = admin1,scale=5500,via = "drive")
+
+
+```
+
+```{r}
+bla <- monthly_cum_22 |> 
+  select(adm1_en,date,parameter, value) |> 
+  ggplot(aes(x=date, value,color=adm1_en))+
+  geom_line()+
+  scale_color_brewer(palette = "Set1")
+
+plotly::ggplotly(bla)
+```
+
+
+```{r}
+monthly_cum_precip_zonal_admin1 |> janitor::tabyl(parameter)
+cum_per_year <- monthly_cum_precip_zonal_admin1 |> 
+  select(adm1_en,parameter, date,value) |> 
+  group_by(year =lubridate::year(date),adm1_en) |> 
+  mutate(min = min(value)) |> 
+  ungroup() |> 
+  mutate(
+    cum_precip=value-min
+  ) |> arrange(date)
+cum_per_year |> print(n=30)
+
+ cum_per_year |>
+   ggplot(aes(x=date,y=cum_precip,color=adm1_en))+
+   geom_line()+
+   facet_wrap(~adm1_en)
+
+```

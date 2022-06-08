@@ -1,0 +1,141 @@
+---
+title: "da-bivariate-climate-maps"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{da-bivariate-climate-maps}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Inputs
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(tidyverse)
+library(sf)
+library(tidyrgee)
+devtools::load_all()
+ee_Initialize()
+
+
+con <- DBI::dbConnect(RPostgres::Postgres(),
+                      dbname = "global_gdb",
+                      user      = rstudioapi::askForPassword("Database user"),
+                      password      = rstudioapi::askForPassword("Database password"),
+                      port     = 5432)
+
+# DBI::dbListTables(con)
+admin1 <- st_read(con,"eth_adm1")
+admin1 <- admin1 |> 
+  rename(
+    geometry="geom"
+  )
+
+
+
+chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+chirps <- ee$ImageCollection(chirps_link)
+chirps_tidy <- as_tidyee(chirps)
+
+
+country_code <- "eth"
+AOI_layer_name <- "eth_adm0"
+AOI_grid_layer_name <- NULL
+hex_diameter <- 15000 # 15 km set as de
+surveyGEER:::aoi_or_grid_warning()
+
+```
+
+
+Create grid
+```{r}
+
+grid <- load_aoi_grid(aoi =AOI_layer_name,
+                           grid = AOI_grid_layer_name,
+                           hex_diameter = hex_diameter,
+                           country_code = country_code
+                           )
+
+```
+# CHIRPS monthly standard score
+## ImageCollection maninpulation
+
+- calculate time frame of interest precip values
+- calculate baseline time frame comparable precip values
+- join on common term
+
+
+```{r}
+rainfall_current <-  chirps_tidy |> 
+  filter(year==2022) |> 
+  group_by(year,month) |> 
+  summarise(
+    stat="sum"
+  )
+
+rainfall_yrmo_historical <-  chirps_tidy |> 
+  filter(year %in% 1981:2020) |> 
+  group_by(year,month) |> 
+  summarise(
+    stat="sum"
+  ) 
+rainfall_mo_historical <- rainfall_yrmo_historical |> 
+  group_by(month) |> 
+  summarise(stat=list("mean","sd"))
+
+
+rainfall_comparison_historical <- rainfall_current |> 
+  inner_join(rainfall_mo_historical, by="month")
+```
+
+from joined term we can calculate standard (Z) score. `$expression` methods have not yet been written into `tidyee` . Therefore we run conversion `as_ee` function to convert `tidyee` class back to `ImageCollection` class native to `rgee` to use `$expression` building syntax to create the standard score. After creation we can throw it back into our `tidyee` workflow with `as_ee`
+
+```{r}
+rainfall_comparison_historical_ic <- rainfall_comparison_historical |> 
+  as_ee()
+rainfall_comparison_historical_ic$first()$bandNames()$getInfo()
+
+rainfall_comparison_historical <- rainfall_comparison_historical |> 
+  select(precip_current="precipitation_sum",
+         precip_baseline_mean="precipitation_sum_mean",
+         precip_baseline_sd = "precipitation_sum_stdDev"
+         )
+rainfall_comparison_historical_ic <- rainfall_comparison_historical |> 
+  as_ee()
+rainfall_comparison_historical_ic$first()$bandNames()$getInfo()
+chirps_zscore_ic<- rainfall_comparison_historical_ic$map(
+  function(img){
+    zscore<- img$expression(
+      "float((precip_current-precip_baseline_mean)/(precip_baseline_sd))",
+      opt_map= list(precip_current= img$select("precip_current"),
+                    precip_baseline_mean= img$select("precip_baseline_mean"),
+                    precip_baseline_sd= img$select("precip_baseline_sd")
+      )
+    )$rename("precip_z_score")
+    img$select("precip_current","precip_baseline_mean")$addBands(zscore)
+  }
+  
+) 
+
+
+chirps_z_tidy <- as_tidyee(chirps_zscore_ic)
+```
+
+## Zonal Stats
+Now time for the zonal 
+
+```{r}
+
+chirps_zonal <- chirps_z_tidy |> 
+  ee_extract_tidy(
+    y = grid,stat = "mean",scale = 5500,via = "drive"
+                  )
+
+```

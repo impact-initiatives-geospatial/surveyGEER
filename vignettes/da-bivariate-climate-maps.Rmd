@@ -15,6 +15,15 @@ knitr::opts_chunk$set(
 ```
 
 # Inputs
+
+toggle parameters
+```{r}
+write_rainfall_abundance_outputs <- c(T,F)[1]
+write_rainfall_timing_outputs <-  c(T,F)[1]
+write_combined_outputs <- c(T,F)[1]
+
+```
+
 ```{r setup}
 library(surveyGEER)
 library(rgee)
@@ -133,9 +142,13 @@ Now time for the zonal
 
 ```{r}
 
-chirps_zonal <- chirps_z_tidy |> 
+rainfall_abundance_zonal <- chirps_z_tidy |> 
   ee_extract_tidy(
     y = grid,stat = "mean",scale = 5500,via = "drive"
                   )
+
+if(write_chirps_outputs){
+  write_rds(rainfall_abundance_zonal,"data/temp_outputs/precip_abundance_z_grid.rds")
+}
 
 ```

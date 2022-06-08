@@ -279,7 +279,7 @@ ee_floored_date_list_to_map <- function(x,month_lag){
 }
   
 
-ee_floored_date_list_to_map(x = chirps_tidy,month_lag = 2)$getInfo()
+ee_floored_date_list_to_map(x = chirps_tidy,month_lag = 3)$getInfo()
 debugonce(ee_lag_stat)
 ee_lag_stat(x = chirps_tidy,month_lag = 1)$getInfo()
 

@@ -55,8 +55,8 @@ write_outputs_to <-  "data/"
 extract_ndvi_to_hex <- c(T,F)[1]
 extract_precip_to_hex <- c(T,F)[1]
 
-country_code <- NULL
-AOI_layer_name <- NULL
+country_code <- "eth"
+AOI_layer_name <- "eth_adm0"
 AOI_grid_layer_name <- NULL
 hex_diameter <- 15000 # 15 km set as default diameter for hexagon
 

@@ -41,24 +41,42 @@ You can install the latest version of `tidyrgee` here:
 devtools::install_github("r-tidy-remote-sensing/tidyrgee")
 ```
 
+## Intro
+
 This package will hold templates and data-pipelines to extract remote
 sensing data using the `rgee` and new `tidyrgee` packages. Templates
-will be stored as vignettes in the package. I will provide one template
-in this readme to serve as an example for new users just visiting the
-page for the first time:
+will be stored as vignettes in the package. This aim of this **README**
+is to provide a brief snap shot of some of the analysis, outputs, and
+methods that will be stored and linked to in the templates. To perform
+the analyses/run it is recommended that you work off the vignette
+templates and store the `.rmd` file in the `filled_templates` folder
+with a unique `prefix` for your work.
+
+**Vignettes template/tutorial links**
+
+-   Hexagon maps
+    -   [NDVI Standard Score](insert_link_here)
+    -   [Record low rainfall](instert_link_here)
+-   [SPI](insert_link_here)
+-   [Bivariate Climate Maps](insert_link_here)
 
 ## Working examples
 
-### Hex Maps
+Below are some of the customizeable outputs from the `surveyGEER`
+package. Additionally, below we demonstrate some of the `tidyrgee`
+syntax to create a few of these outputs. For comprehensive detailed
+instructions on these outputs see the vignette links above.
 
-This annotated code below will show you how to extract the data to make
-maps similar to these hexagon maps below
+### Hex Maps
 
 **NDVI Standard Score Map**
 <img src="man/figures/202203_som_ndvi.png" width="100%" style="display: block; margin: auto;" />
 
 **Precipitaiton Record Low Map**
 <img src="man/figures/20220420_som_record_low_rainfall_2021.png" width="100%" style="display: block; margin: auto;" />
+
+**Regional SPI analyss**
+<img src="man/figures/SOM_FMA_SPI_2022.png" width="100%" style="display: block; margin: auto;" />
 
 Below is the code to extract the data relevant to your context. Once the
 data is extracted it can easily be mapped in any GIS software (even here

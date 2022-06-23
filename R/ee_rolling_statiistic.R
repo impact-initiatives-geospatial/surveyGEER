@@ -184,7 +184,7 @@ ee_rolling_statistic2 <-  function(x=monthly_rainfall,
     bnames <- summarised_composite_ic$first()$bandNames()$getInfo()
     replace_rgx <- glue::glue("_{stat}$")
     new_bnames <- str_replace_all(bnames,replace_rgx,name_suffix)
-    ee_ob_renamed <- output$ee_ob$map(
+    ee_ob_renamed <- summarised_composite_ic$map(
       function(img){
         img$rename(new_bnames)
       }

@@ -40,7 +40,7 @@ ee_spi <- function(x,
   cat(glue::glue("calculating {spi_mos} SPIs\n"))
 
   rolling_ee<- ee_rolling_statistic2(x = x,
-                                     stat = stat,
+                                     stat = "sum",
                                      window = window,
                                      time_unit = window_unit,
                                      return_tidyee = F)
@@ -105,12 +105,12 @@ ee_spi <- function(x,
 
 
 
-ee_chirps_spi <- function(x, window,window_unit, .load_chirps=T, band="precipitation"){
+ee_chirps_spi <- function(x=NULL, window,window_unit,moi, .load_chirps=T, band="precipitation"){
 
   assertthat::assert_that(window_unit %in% c("day","month"),
                           msg = "currently SPI must be formulated as in 'day' or 'month'" )
   if(is.null(x)){
-    cat("no tidyee object loaded, CHIRPS daily being loaded from GEE")
+    cat("no tidyee object loaded, CHIRPS daily being loaded from GEE\n")
     .load_chirps <- T
   }
   if(.load_chirps){
@@ -128,7 +128,7 @@ ee_chirps_spi <- function(x, window,window_unit, .load_chirps=T, band="precipita
   new_band_name <-  glue::glue("{band}_sum")
 
   cat("beginning SPI func - expect 2-3 minutes\n")
-  spi_tidyee <- ee_spi(x=monthly_rainfall,
+  spi_tidyee <- ee_spi(x=x_year_month,
                        window=window,
                        window_unit=window_unit,
                        ic_time_unit= "month",

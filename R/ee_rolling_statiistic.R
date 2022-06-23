@@ -128,10 +128,15 @@ get_roll_dates <-  function(x, window,time_unit){
 #' chirps_tidy <- as_tidyee(chirps)
 #' rolling_tidyee_collection <- ee_rolling_statistic(x=chirps_tidy,stat="mean", window=3,time_unit="month")
 #' }
-ee_rolling_statistic2 <-  function(x,stat, window,time_unit){
+ee_rolling_statistic2 <-  function(x=monthly_rainfall,
+                                   stat="sum",
+                                   window,
+                                   time_unit="month",
+                                   return_tidyee=T){
   assertthat::assert_that(time_unit %in% c("day","month","year"))
   dates_to_map <- get_roll_dates(x, window,time_unit)
   # band_names_x <- tidyrgee:::vrt_band_names(x)
+  name_suffix <-  glue::glue("_roll{stat}{window}")
   ee_reducer <- tidyrgee:::stat_to_reducer_full(fun = stat)
   ic <- x$ee_ob
   summarised_composite_ic = ee$ImageCollection$fromImages(
@@ -174,8 +179,25 @@ ee_rolling_statistic2 <-  function(x,stat, window,time_unit){
 
 
   summarised_composite_ic = ee$ImageCollection(summarised_composite_ic)
-  return(summarised_composite_ic |> tidyrgee::as_tidyee(time_end = TRUE))
 
+  if("ee.imagecollection.ImageCollection"%in%class(summarised_composite_ic) ){
+    bnames <- summarised_composite_ic$first()$bandNames()$getInfo()
+    replace_rgx <- glue::glue("_{stat}$")
+    new_bnames <- str_replace_all(bnames,replace_rgx,name_suffix)
+    ee_ob_renamed <- output$ee_ob$map(
+      function(img){
+        img$rename(new_bnames)
+      }
+    )
+    if(return_tidyee)
+    output <-  as_tidyee(ee_ob_renamed,time_end = T)
+
+    if(!return_tidyee){
+    output <- ee_ob_renamed
+  }
+  }
+
+  return(output)
 
 }
 

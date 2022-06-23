@@ -1,0 +1,266 @@
+---
+title: "ea-spi"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ea-spi}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+ee_Initialize()
+library(tidyverse)
+library(sf)
+library(tidyrgee)
+devtools::load_all()
+ee_Initialize()
+chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+chirps <- ee$ImageCollection(chirps_link)
+
+
+con <- DBI::dbConnect(RPostgres::Postgres(),
+                      dbname = "global_gdb",
+                      user      = rstudioapi::askForPassword("Database user"),
+                      password      = rstudioapi::askForPassword("Database password"),
+                      port     = 5432)
+
+# DBI::dbListTables(con)
+admin1 <- st_read(con,"som_adm1")
+admin1 <- admin1 |> 
+  rename(
+    geometry="geom"
+  )
+
+chirps_tidy <- as_tidyee(chirps)
+```
+
+# lets see how it works with dates mod
+```{r}
+monthly_rainfall <-  chirps_tidy |> 
+  group_by(year, month) |> 
+  summarise(
+    stat="sum"
+  )
+
+rainfall_3month_moving_sum <- ee_rolling_statistic2(x = monthly_rainfall,
+                                                      stat = "sum",
+                                                      window = 3,
+                                                      time_unit = "month")
+
+
+ee_rolling_statistic2 |> debugonce()
+rainfall_3month_moving_sum <- ee_rolling_statistic2(x = chirps_tidy,
+                                                      stat = "sum",
+                                                      window = 5,
+                                                      time_unit = "day",return_tidyee = F)
+
+
+# rainfall_3month_moving_sum$filterDate("2020-01-01","2022-05-01") |> as_tidyee()
+
+
+historical_rolling <- rainfall_3month_moving_sum |> 
+  group_by(month) |> 
+  summarise(stat= list("mean","sd"))
+
+
+current_and_historical_rolling_bands <- rainfall_3month_moving_sum |> 
+  filter(month==4) |>
+  inner_join(historical_rolling, by="month")
+```
+
+
+```{r}
+# current_and_historical_rolling_bands$ee_ob$first()$bandNames()$getInfo()
+ic_spi<- current_and_historical_rolling_bands$ee_ob$map(
+  function(img){
+    zscore<- img$expression(
+      "float((precip_current-precip_baseline_mean)/(precip_baseline_sd))",
+      opt_map= list(precip_current= img$select("precipitation_sum_sum"),
+                    precip_baseline_mean= img$select("precipitation_sum_sum_mean"),
+                    precip_baseline_sd= img$select("precipitation_sum_sum_stdDev")
+      )
+    )$rename("precip_z_score")
+    img$select("precipitation_sum_sum")$addBands(zscore)
+  }
+  
+) 
+ic_spi <- ic_spi$select("precip_z_score")
+
+# back to tidyee
+
+tidyee_spi <- as_tidyee(ic_spi)
+```
+
+lets extract median April SPI for each adm 1 in SOM from 1981 to 2022
+```{r}
+spi3mo_adm1 <- tidyee_spi |> 
+  ee_extract_tidy(y= admin1,stat = "median", scale=5500, via="drive")
+```
+
+
+```{r}
+spi3mo_adm1 |>
+  mutate(neg_pos =
+           if_else(value<=0,"Negative","Positive")) |> 
+  
+  select(admin1name_1 ,date, value,parameter,neg_pos) |> 
+  # filter(admin1name_1=="Awdal") |> 
+  ggplot(aes(x=date, y= value, fill=neg_pos)) +
+  geom_bar(stat="identity")+
+  scale_fill_manual(values = c("red","blue"))+
+  labs(title = "3 Month SPI Somalia by Region",
+       subtitle ="February, March, April (FMA)" )+
+  facet_wrap(~admin1name_1,scales = "free_y")+
+  theme_bw()+
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle=90)
+  )
+
+ggsave("man/figures/SOM_FMA_SPI_2022.png",width = 8,height = 8,units = "in")
+
+spi3mo_adm1 |> 
+  select(admin1name_1 ,date, value,parameter) |> 
+  filter(admin1name_1=="Bari") |>
+  ggplot(aes(x=date, y= value)) +
+  geom_bar(stat="identity")
+
+```
+
+
+
+```{r}
+
+#' Title
+#'
+#' @param x 
+#' @param window 
+#' @param window_unit 
+#' @param ic_time_unit 
+#' @param band name of band 
+#' @param moi month of interest. (i.e if moi =4 and window is 3 months then the SPI is FMA)
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' 
+#' # lets first think about this in the common month framework
+ee_spi <- function(x=monthly_rainfall,
+                   window=3,
+                   window_unit="month",
+                   ic_time_unit= "month",
+                   band="precipitation_sum",
+                   moi=4,use_tidyee=T
+){
+  
+  assertthat::assert_that(window_unit %in% c("day","month"),
+                          msg = "currently SPI must be formulated as in 'day' or 'month'" )
+  
+  assertthat::assert_that(ic_time_unit %in% c("day","month"),
+                          msg = "imageCollection must be in 'day' or 'month' time steps for the SPI calculation ot take place" )
+  new_spi_band_name<- glue::glue("{band}_{window}_{window_unit}_SPI")
+  spi_mos<- glue::glue_collapse( lubridate::month(moi-(1:window-1) |> rev(),label=T, abbr=T),sep = "-")
+  cat(glue::glue("calculating {spi_mos} SPIs\n"))
+  
+  rolling_ee<- ee_rolling_statistic2(x = x,
+                                     stat = stat,
+                                     window = window,
+                                     time_unit = window_unit,
+                                     return_tidyee = F)
+  
+  # this could speed this up by skipping this step and using `rgee` + mapping on month
+  # think I should doit both ways and compare?
+  if(use_tidyee){
+    rolling_tidyee <-  tidyrgee::as_tidyee(rolling_ee)
+    
+    baseline_rollling_tidyee <- rolling_tidyee |> 
+      group_by(month) |> 
+      summarise(stat= list("mean","sd"))
+    
+    current_and_historical_rolling <- rolling_tidyee |> 
+      filter(month==moi) |>
+      inner_join(baseline_rollling_tidyee, by="month")
+    tidyrgee:::vrt_band_names(current_and_historical_rolling)
+    
+    rolling_band_name <- glue::glue("{band}_rollsum{window}")
+    
+    ic_spi<- current_and_historical_rolling$ee_ob$map(
+      function(img){
+        zscore<- img$expression(
+          "float((precip_current-precip_baseline_mean)/(precip_baseline_sd))",
+          opt_map= list(precip_current= img$select(rolling_band_name),
+                        
+                        precip_baseline_mean= img$select(glue::glue("{rolling_band_name}_mean")),
+                        precip_baseline_sd= img$select(glue::glue("{rolling_band_name}_stdDev"))
+          )
+        )$rename(new_spi_band_name)
+        img$select(rolling_band_name)$addBands(zscore)
+      }
+      
+    ) 
+    ic_spi <- ic_spi$select(new_spi_band_name)
+    
+  }
+  return(as_tidyee(ic_spi,time_end = T))
+}
+
+
+system.time(
+spi_3 <- ee_spi(x=monthly_rainfall,
+                   window=3,
+                   window_unit="month",
+                   ic_time_unit= "month",
+                   band="precipitation_sum",
+                   moi=4,use_tidyee=T)
+)
+
+
+ee_chirps_spi <- function(x, window,window_unit, .load_chirps=T, band="precipitation"){
+    
+  assertthat::assert_that(window_unit %in% c("day","month"),
+                          msg = "currently SPI must be formulated as in 'day' or 'month'" )
+  if(is.null(x)){
+    cat("no tidyee object loaded, CHIRPS daily being loaded from GEE")
+    .load_chirps <- T
+  }
+  if(.load_chirps){
+    chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+    ic<- rgee::ee$ImageCollection(chirps_link)
+    cat("loading tidyee object (takes a few seconds)\n")
+    x <-  as_tidyee(ic)
+  }
+  
+  x_year_month <-  x |> 
+  group_by(year, month) |> 
+  summarise(
+    stat="sum"
+  )
+  new_band_name <-  glue::glue("{band}_sum")
+  
+  cat("beginning SPI func - expect 2-3 minutes\n")
+  spi_tidyee <- ee_spi(x=monthly_rainfall,
+         window=window,
+         window_unit=window_unit,
+         ic_time_unit= "month",
+         band="precipitation_sum",
+         moi=moi,
+         use_tidyee=T)
+  
+  return(spi_tidyee)
+
+}
+
+system.time(
+spi_2_chirps<- ee_chirps_spi(x = chirps_tidy,window = 2,window_unit = "month")
+)
+```

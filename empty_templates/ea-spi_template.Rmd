@@ -1,0 +1,135 @@
+---
+title: "ea-spi"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ea-spi}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Intro on SPI
+Will provide brief background of what SPI is and how it's used (i.e 1mo, 3mo, 6mo, 9mo, etc)
+
+# The work-flow
+
+## Set up
+**step 1** -  load the libraries, custom function, and initialing the GEE API.
+**step 2** - load area of interest, by setting path. If no path is provided we will the Somalia data set that is part of this package
+
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(tidyverse)
+library(tidyrgee)
+library(sf)
+devtools::load_all()
+ee_Initialize()
+
+adm_zone_of_interest_path <-  NULL # here is where you can input a new admin zone for graphing SPI by zone
+if(!is.null(adm_zone_of_interest_path)){
+  adm_zone_of_interest <- sf::st_read(adm_zone_of_interest_path)
+}
+# if user supplies no zone of interest path - we can use data built into surveyGEER
+if(is.null(adm_zone_of_interest_path)){
+  adm_zone_of_interest <-  som_adm1  
+}
+
+```
+
+## Calculate SPI
+We can simply use the `ee_chirps_spi` function below to do all the calculations for us. This function loads the `chirps` daily data set directly from the GEE API and performs the calculations. Currently, it only accepts `window_unit` as month. However, we will soon be updating this to allow days. Nonetheless, `month` tends to be the most common window_unit used. It's worth noting that you can `moi` can be set to more than 1 month if you are interesting calculating SPI for multiple months. Remember you can always run `?ee_chirps_spi` for additional information
+
+Below we are calculating  the 3 month SPI for March. It can take a few minutes. What this will return is an tidyee class object which holds an `ee$ImageCollection`. The ImageCollection will contains images where each image is the 3 month (FMA) SPI for April for each year on record. 
+
+```{r}
+spi_3<- ee_chirps_spi(window = 3,window_unit = "month",moi = 4)
+```
+Now that you have this collection of SPI images. Let's extract it to our areas of interest.
+
+## Zonal Statistics
+
+To extract our area of interest we can run some zonal statistics with `ee_extract_tidy`, For each zone in our area of interest we will calculate the median SPI for each image. 
+
+**Note:** zonal stats using GEE are time-consuming. This could take several minutes, go have a coffee (my first run using the SOM admin 1 zones took 6.8 minutes) 
+
+```{r}
+
+spi_3_adm1 <- spi_3 |> 
+  ee_extract_tidy(y= adm_zone_of_interest,
+                  stat = "median",
+                  scale=5500,
+                  via="drive")
+```
+Once complete we have a nice tidy data frame containing all the extracted value for each zone. Time to visualize
+
+## Temporal Visualization
+
+You might be interested in looking at the JFA 3 month April SPI over time. If you are interested in just looking at one zone at a time you can filter the results data.frame to a specific zone and run `spi_bar_plot`
+
+```{r}
+
+awdal_spi_3_april <- spi_3_adm1 |> 
+  filter(admin1name=="Awdal")
+
+spi_bar_plot(awdal_spi_3_april)
+
+```
+
+If you have several zones ad want to chart them all at once you can run `spi_bar_plot_faceted` making sure to specify the `zone` argument as the column with the zone names
+```{r}
+spi_bar_plot_faceted(spi_3_adm1,zone ="admin1name")
+```
+
+
+visualize SPI on Map
+```{r}
+
+
+
+spi3_202204 <- spi_3 |> 
+  filter(month==04, year==2022) |>
+  as_ee()
+spi3_201504 <- spi_3 |> 
+  filter(month==02, year==2015) |> 
+  as_ee()
+
+
+
+
+sp3_202204_bounded <- spi3_202204$filterBounds(bbox_fc) 
+sp3_201504_bounded <- spi3_201504$filterBounds(bbox_fc) 
+spi3_202204_ee <- ee$Image(sp3_202204_bounded$first())  
+spi3_201504_ee <- ee$Image(sp3_201504_bounded$first())  
+
+spi_vis_params = list(min=-3,
+                 max=3,
+                 palette=c('#9ecae1,
+                           #ffffff,
+                           #ffeda0,
+                           #feb24c,
+                           #f03b20')
+                 )
+              
+# sp3_202204_bounded$getInfo()]
+Map$centerObject(bbox_fc,10)
+Map$addLayer(eeObject = spi3_202204_ee,visParams = spi_vis_params)+
+  Map$addLayer(eeObject = spi3_201504_ee,visParams = spi_vis_params)
+
+```
+
+## Discussion and Resources
+
+"More than 100 drought indices—such as the SPI [17], Erinç index [18], Percentage of the normal index [19], Palmer drought severity index [20,21], and Exploration drought index (RDI)—are used to determine drought in the world [22]. Among these indices, only the SPI is preferred more because of its use of the fewest meteorological variables (precipitation) and ease and simplicity of calculation at different time intervals. In addition, it allows the determination of both short-term and long-term meteorological and agricultural droughts [23]." [Rolbiecki et. al.,2022](https://www.mdpi.com/2071-1050/14/6/3697/htm)
+
+good discussion of pros and cons:
+[FAO SWALIM](https://www.faoswalim.org/resources/site_files/W-14%20Analysis%20of%20General%20Climatic%20Conditions%20in%20Somalia%20in%20Support%20of%20Drought%20Monitoring.pdf)
+
+[GRIDMET DROUGHT: CONUS Drought Indices](https://developers.google.com/earth-engine/datasets/catalog/GRIDMET_DROUGHT#bands) use 1980-2016 as there baseline to calculate SPI.

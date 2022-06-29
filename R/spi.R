@@ -23,11 +23,11 @@
 #'}
 
 ee_spi <- function(x,
-                   window=3,
+                   window=6,
                    window_unit="month",
                    ic_time_unit= "month",
                    band="precipitation_sum",
-                   moi=4,use_tidyee=T
+                   moi=c(3,4),use_tidyee=T
 ){
 
   assertthat::assert_that(window_unit %in% c("day","month"),
@@ -36,8 +36,13 @@ ee_spi <- function(x,
   assertthat::assert_that(ic_time_unit %in% c("day","month"),
                           msg = "imageCollection must be in 'day' or 'month' time steps for the SPI calculation ot take place" )
   new_spi_band_name<- glue::glue("{band}_{window}_{window_unit}_SPI")
-  spi_mos<- glue::glue_collapse( lubridate::month(moi-(1:window-1) |> rev(),label=T, abbr=T),sep = "-")
-  cat(glue::glue("calculating {spi_mos} SPIs\n"))
+  spi_mos <- glue::glue('2020-{moi}-01') |>
+    lubridate::as_date() |>
+    purrr::map(~glue::glue_collapse(lubridate::month(.x-months(1:window-1) |> rev(),label=T, abbr=T),sep="-"))
+  if(length(spi_mos)>1){
+    spi_mos <- glue::glue_collapse(spi_mos,sep = " and\n")
+  }
+  cat(glue::glue("calculating {window} month SPI with \n{spi_mos} \n"))
 
   rolling_ee<- ee_rolling_statistic2(x = x,
                                      stat = "sum",
@@ -55,7 +60,7 @@ ee_spi <- function(x,
       summarise(stat= list("mean","sd"))
 
     current_and_historical_rolling <- rolling_tidyee |>
-      filter(month==moi) |>
+      filter(month%in%moi) |>
       inner_join(baseline_rollling_tidyee, by="month")
     tidyrgee:::vrt_band_names(current_and_historical_rolling)
 
@@ -78,7 +83,7 @@ ee_spi <- function(x,
     ic_spi <- ic_spi$select(new_spi_band_name)
 
   }
-  return(as_tidyee(ic_spi,time_end = T))
+  return(as_tidyee(ic_spi))
 }
 
 
@@ -105,7 +110,13 @@ ee_spi <- function(x,
 
 
 
-ee_chirps_spi <- function(x=NULL, window,window_unit,moi, .load_chirps=T, band="precipitation"){
+ee_chirps_spi <- function(x=NULL,
+                          window,
+                          window_unit,
+                          moi,
+                          .load_chirps=T,
+                          band="precipitation"
+                          ){
 
   assertthat::assert_that(window_unit %in% c("day","month"),
                           msg = "currently SPI must be formulated as in 'day' or 'month'" )
@@ -132,7 +143,7 @@ ee_chirps_spi <- function(x=NULL, window,window_unit,moi, .load_chirps=T, band="
                        window=window,
                        window_unit=window_unit,
                        ic_time_unit= "month",
-                       band="precipitation_sum",
+                       band=new_band_name,
                        moi=moi,
                        use_tidyee=T)
 

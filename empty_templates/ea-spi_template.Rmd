@@ -89,7 +89,10 @@ spi_bar_plot_faceted(spi_3_adm1,zone ="admin1name")
 ```
 
 
-visualize SPI on Map
+## Geographic visualization
+
+This part not done!
+
 ```{r}
 
 
@@ -98,7 +101,7 @@ spi3_202204 <- spi_3 |>
   filter(month==04, year==2022) |>
   as_ee()
 spi3_201504 <- spi_3 |> 
-  filter(month==02, year==2015) |> 
+  filter(month==04, year==2015) |> 
   as_ee()
 
 

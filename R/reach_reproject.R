@@ -7,23 +7,24 @@
 #' library(surveyGEER)
 #' epsg_lookup_table <-  epsg_lookup()
 #' }
+
 epsg_lookup <- function(){
   tibble::tribble(
     ~country_code_lookup, ~epsg_code,              ~wgs84_utm,
-    "bgd",     32646L,                      NA,
-    "som",     32639L, "WGS 84/UTM zone 39N",
-    "eth",     32637L, "WGS 84/UTM zone 37N",
-    "col",         NA,                      NA,
-    "afg",         32642L,"WGS 84 / UTM zone 42N" ,
-    "irq",     32637L, "WGS 84 / UTM zone 37N",
-    "syr",         NA,                      NA,
-    "leb",         NA,                      NA,
-    "drc",         NA,                      NA,
-    "car",         NA,                      NA,
-    "ssd",         NA,                      NA,
-    "nga",         NA,                      NA,
-    "ukr",         NA,                      NA,
-    "mli",     32629L, "WGS 84/UTM zone 29N"
+    "bgd",32646L,"WGS 84 / UTM zone 46N",
+    "som",32639L,"WGS 84/UTM zone 39N",
+    "eth",32637L,"WGS 84/UTM zone 37N",
+    "col",32719L,"WGS 84 / UTM zone 19S",
+    "afg",32642L,"WGS 84 / UTM zone 42N" ,
+    "irq",32637L,"WGS 84 / UTM zone 37N",
+    "syr",32636L,"WGS 84 / UTM zone 36N",
+    "leb",32637L,"WGS 84 / UTM zone 37N",
+    "drc",32633L,"WGS 84 / UTM zone 33N",
+    "car",2633L,"WGS 84 / UTM zone 33N",
+    "ssd",32636L,"WGS 84 / UTM zone 36N",
+    "nga",32632L,"WGS 84 / UTM zone 32N",
+    "ukr",32636L,"WGS 84 / UTM zone 36N",
+    "mli",32629L,"WGS 84/UTM zone 29N"
   )}
 
 

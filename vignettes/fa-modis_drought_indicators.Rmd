@@ -1,0 +1,310 @@
+---
+title: "MODIS Drought Indicators"
+author: "Zack Arno"
+date: "4/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intro
+
+This utilizes the [MODIS Terra Vegetation Indices 16-Day Global 250 m ](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD13Q1) data set to create a variety of drought indicators. They indicators are then aggregated to hexagon grid which is output for QGIS map automation and visualization through the `Atlas` functionality.
+
+As more drought indicators are constructed from this data set they will be added to the code in this notebook. 
+
+so far the indicators include:
+
+- NDVI Standard Score
+- NDVI pct median historical value
+- VCI
+
+Will add some theory on these indicators here in the future.
+
+
+Below we load the libraries, custom functions and set some key parameters. Make sure to set your country_code in lower case letters below. Additionally in this chunk we define the baseline. The baseline is what we compare our months of interest to to understand if we are above or below "normal." There is no standardized baseline which everyone uses so for now we will go with 2000-2015.
+
+
+```{r load_funcs}
+library(rgee)
+library(tidyverse)
+library(sf)
+library(tidyrgee)
+ee_Initialize()
+devtools::load_all()
+country_code <- c("ssd","eth","som")[2]
+baseline_years <- c(2000:2015)
+```
+
+
+## load input data
+
+```{r}
+
+con <- DBI::dbConnect(RPostgres::Postgres(),
+                      dbname = "global_gdb",
+                      user      = rstudioapi::askForPassword("Database user"),
+                      password      = rstudioapi::askForPassword("Database password"),
+                      port     = 5432)
+
+adm1 <- st_read(con,paste0(country_code,"_adm1"))
+
+# make grid
+# - reproject and dissolve - basically return adm0 of country 
+adm1_dissolved_utm <- adm1 |> 
+  reach_reproject_utm(country_code) |> 
+  summarise() 
+
+# make a grid based on the extent of the abovve
+hex_grid <- adm1_dissolved_utm |> 
+  st_make_grid(cellsize = 12000,square = F) |> 
+  st_sf() |> 
+  mutate(grid_id=row_number()) |> 
+  rename(geometry=1)
+  
+
+# the grid now covers the bbox of the adm... 
+# too make extraction faster later lets clip the grid
+# lets give some buffer on the admin first to clip
+
+# buffer
+adm1_dissolved_buffered<- adm1_dissolved_utm |> 
+  st_buffer(dist = 50000)
+
+hex_grid_clipped <- hex_grid[adm1_dissolved_buffered,] 
+  
+
+```
+
+<!-- # ```{r} -->
+<!-- # hex_grid_clipped<- st_read(con,"som_hex_12k") |>  -->
+<!-- #   rename(geometry="geom") -->
+<!-- # ``` -->
+<!-- #  -->
+
+earth engine imagery
+```{r}
+modis_link <- "MODIS/006/MOD13Q1"
+modisIC <- ee$ImageCollection(modis_link)
+```
+
+Rescale NDVI 
+
+```{r}
+
+modis_ndvi <- modisIC$
+  select("NDVI")$
+  map(
+    ee_utils_pyfunc(
+      function(x){x$
+          multiply(0.0001)$
+          copyProperties(x,x$propertyNames())
+          }
+    )
+  )
+```
+
+
+calculate monthly stats for baseline
+```{r}
+
+modis_ndvi_tidy <- as_tidyee(modis_ndvi)
+
+monthly_baseline <- modis_ndvi_tidy |> 
+  filter(year %in% baseline_years) |>
+  group_by(month) |> 
+  summarise(stat=list("mean","sd","median","min","max"))
+```
+
+composite recent monthly NDVI and combine with historical
+```{r}
+
+ndvi_recent_monthly <- modis_ndvi_tidy |> 
+  filter(year %in% c(2021:2022)) |>
+  group_by(year,month) |> 
+  summarise(
+    stat="mean"
+  )
+
+ndvi_recent_renamed <- ndvi_recent_monthly |> 
+  select(NDVI="NDVI_mean")
+ 
+ndvi_recent_and_baseline<- inner_join(x = ndvi_recent_renamed,
+                                     y = monthly_baseline,
+                                     by = "month")
+
+```
+
+
+# Calculate Indicators
+- NDVI Standard Scores
+- NDVI % median historical
+- VCI
+```{r}
+ndvi_recent_baseline_imageCol <- ndvi_recent_and_baseline |> 
+  as_ee()
+
+ndvi_zscore<- ndvi_recent_baseline_imageCol$map(
+  function(img){
+    zscore<- img$expression(
+      "float((NDVI-NDVI_mean)/(NDVI_stdDev))",
+      opt_map= list(NDVI= img$select("NDVI"),
+                    NDVI_mean= img$select("NDVI_mean"),
+                    NDVI_stdDev= img$select("NDVI_stdDev")
+      )
+    )$rename("NDVI_z_score")
+    img$select("NDVI","NDVI_mean","NDVI_median","NDVI_min","NDVI_max")$addBands(zscore)
+  }
+  
+) 
+ndvi_pct_median<- ndvi_zscore$map(
+  function(img){
+    NDVI_pct_median<- img$expression(
+      "float((NDVI)/(NDVI_median))",
+      opt_map= list(NDVI= img$select("NDVI"),
+                    NDVI_median= img$select("NDVI_median")
+                    
+      )
+    )$rename("NDVI_pct_median")
+    img$select("NDVI","NDVI_min","NDVI_max","NDVI_z_score")$addBands(NDVI_pct_median)
+  }
+  
+) 
+
+vci<- ndvi_pct_median$map(
+  function(img){
+    vci<- img$expression(
+      "float((NDVI-NDVI_min)/(NDVI_max-NDVI_min))",
+      opt_map= list(NDVI= img$select("NDVI"),
+                    NDVI_min= img$select("NDVI_min"),
+                    NDVI_max= img$select("NDVI_max")
+      )
+    )$rename("VCI")
+    img$select("NDVI","NDVI_pct_median","NDVI_z_score")$addBands(vci)
+  }
+  
+) 
+
+
+```
+
+select just indicators of interest and time period of interest
+```{r}
+
+ndvi_indicators <- as_tidyee(vci)
+
+ndvi_indicators_pre_processed <- ndvi_indicators |>
+  filter(year>=2021) |>
+  select(
+    "NDVI_z_score",
+    "NDVI_pct_median",
+    "VCI"
+    )
+
+```
+
+## Zonal Statistics
+
+Here we aggregated to the hex grid - this could take some time, be patient.
+
+**note:** We have set he `via` argument to "drive". You can read more about the `via` methods available in the `rgee` documentation. However, I have found "drive" to be the simplest option for large zonal reductions. However, there is a limit where GEE will send a timeout error. This limit is dynamic so there is not a defined rule of thumb yet. This being said, I was able to run the reductions on 12 km hex grids for the entire countries of SSD and ETH with no problem. Nonetheless, if you hit that error you can circumvent it but splitting up the polygon layer and looping through it... This is what you see happening with the `if` statements and the `for-loop` below. I set and arbitrary max # of grid cells to 16000. If this is exceeded the grid file is split and half and looped through then binded.
+
+```{r}
+
+# if we have a ton of grid cells we might need to loop through them....
+if(nrow(hex_grid_clipped)>16000){
+  hex_grid_split <- hex_grid_clipped |> 
+    mutate(
+      splitter= grid_id %in% (1:(hex_grid_clipped |> nrow())/2)
+    ) |> 
+    group_split(splitter)
+  # remamber you need a "geometry" column
+  
+  extract_grid_list <- list()
+  for(i in seq_along(hex_grid_split)){
+    temp_grid <- hex_grid_split[[i]]
+    extract_grid_list[[i]] <- ndvi_indicators_pre_processed |> 
+      ee_extract_tidy(y = temp_grid,stat = "mean",scale = 250,via = "drive")
+    
+    
+  } 
+  cat("extraction complete, binding outputs")
+  grid_with_ndvi_indicators <- bind_rows(extract_grid_list)  
+}
+
+if(nrow(hex_grid_clipped)<=16000){
+ grid_with_ndvi_indicators <-  ndvi_indicators_pre_processed |> 
+      ee_extract_tidy(y = hex_grid_clipped,stat = "mean",scale = 250,via = "drive")
+}
+  
+  
+
+
+
+```
+
+
+Pivot each indicator into it's own column
+```{r}
+grid_with_ndvi_pcts <- grid_with_ndvi_indicators |> 
+  pivot_wider(names_from = "parameter",values_from = "value") |> 
+  mutate(
+    NDVI_pct_median=round(NDVI_pct_median*100,1),
+    VCI = round(VCI*100,1)
+    )
+
+
+
+```
+
+
+
+
+```{r}
+grid_with_ndvi_yrmo <- grid_with_ndvi_pcts |> 
+  mutate(yr_mo = paste0(lubridate::month(date,label=T,abbr = F)," ",lubridate::year(date))) 
+
+grid_with_ndvi_yrmo$date |> range()
+
+
+hex_grid_clipped|> 
+  st_transform(crs=4326) |> 
+  left_join(grid_with_ndvi_yrmo, by="grid_id") |> 
+  st_write(
+    "C:\\Users\\zack.arno\\Documents\\GeoCrunch\\Impact\\projects\\impact-initiatives-geospatial\\REACH_SOM\\som_hex_climate_maps.gpkg",
+    paste0(country_code,"_hex_ndvi_base2015"), delete_layer=T,overwrite=T)
+```
+
+# Set  QGIS automation
+create victim file
+
+```{r}
+
+som_adm0_dissolved <- st_read(con,"som_adm1") |> 
+  summarise() |> 
+  mutate(uid=1)
+
+atlas_victim <- som_adm0_dissolved |> 
+  left_join(
+  grid_with_ndvi |> 
+  mutate(yr_mo = paste0(lubridate::month(date,label=T,abbr = F)," ",lubridate::year(date))) |> 
+  distinct(date, yr_mo) |> 
+  mutate(uid=1)   
+    
+  ) 
+
+atlas_victim |> print(n=17)
+
+atlas_victim|> 
+  st_write(
+    "C:\\Users\\zack.arno\\Documents\\GeoCrunch\\Impact\\projects\\impact-initiatives-geospatial\\REACH_SOM\\som_hex_climate_maps.gpkg",
+    "som_atlas_coverage",delete_layer=T, overwrite=T
+  )
+  
+
+```
+
+
+

@@ -50,7 +50,7 @@ We can simply use the `ee_chirps_spi` function below to do all the calculations 
 Below we are calculating  the 3 month SPI for March. It can take a few minutes. What this will return is an tidyee class object which holds an `ee$ImageCollection`. The ImageCollection will contains images where each image is the 3 month (FMA) SPI for April for each year on record. 
 
 ```{r}
-spi_3<- ee_chirps_spi(window = 3,window_unit = "month",moi = 4)
+spi_3<- ee_chirps_spi(window = 3,window_unit = "month",moi = c(3,4,5))
 ```
 Now that you have this collection of SPI images. Let's extract it to our areas of interest.
 

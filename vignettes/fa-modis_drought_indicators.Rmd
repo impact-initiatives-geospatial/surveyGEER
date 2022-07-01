@@ -34,7 +34,7 @@ library(sf)
 library(tidyrgee)
 ee_Initialize()
 devtools::load_all()
-country_code <- c("ssd","eth","som")[2]
+country_code <- c("ssd","eth","som")[3]
 baseline_years <- c(2000:2015)
 ```
 
@@ -274,7 +274,7 @@ hex_grid_clipped|>
   left_join(grid_with_ndvi_yrmo, by="grid_id") |> 
   st_write(
     "C:\\Users\\zack.arno\\Documents\\GeoCrunch\\Impact\\projects\\impact-initiatives-geospatial\\REACH_SOM\\som_hex_climate_maps.gpkg",
-    paste0(country_code,"_hex_ndvi_base2015"), delete_layer=T,overwrite=T)
+    paste0(country_code,"_hex_ndvi_base", max(baseline_years)), delete_layer=T,overwrite=T)
 ```
 
 # Set  QGIS automation

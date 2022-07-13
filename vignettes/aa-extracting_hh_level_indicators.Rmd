@@ -339,6 +339,11 @@ calc_mean_sd_baseline <- function(ic){
 }
   
 
+chirps_ic <- chirps_tidy$ee_ob
+test_do_cr_filt <- chirps_ic$filter(ee$Filter$calendarRange(350, 3, 'day_of_year'))
+test_do_cr_filt_tidyee <- test_do_cr_filt |> as_tidyee()
+test_do_cr_filt_tidyee
+
 
 ee_spi <-  function(x, month_lag){
   cat("calculating lag stats")

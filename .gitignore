@@ -16,3 +16,5 @@ vignettes/workflow.Rmd
 data/sample_hh_data.xlsx
 data/metadata.R
 ^data/eth
+data/*
+map_templates/map_outputs/*

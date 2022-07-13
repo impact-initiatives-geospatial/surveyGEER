@@ -1,0 +1,56 @@
+---
+title: "Agricultural Event Detection"
+output: html_document
+bibliography: references.bib
+link-citation: true
+csl: remote_sensing_journal.csl
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Intro
+
+Using this document to brainstorm ideas on agricultural event detection.
+
+Agricultural event of interest include:
+
+- tilling/plowing/mowing
+- early phase declines?
+
+## Methods
+
+Most methods tend to use sentinel-2 or a combination of sentinel-1 & sentinel-2. Most methods seem to rely on a time series analysis of a few key RS indicators including:
+
+- NDVI (sentinel-2)
+- Bare soil marker [@sentinelhub_bare_soil_marker_sep2020]
+- Backscatter (sentinel-2)[@sentinel_hub_area_monitoring_service]
+
+
+## Challenge
+
+ bladadafdsaf  [@sinergize]
+While creating RS indicators and performing time-series analysis would be relatively straight forward using standard GEE tools, there are two areas which will require further research.
+
+1. crop-land delineation/segmentation
+2. asdfdsafa
+
+
+## Resources
+- [Separability of Mowing and Ploughing Events on Short Temporal Baseline Sentinel-1 Coherence Time Series](https://www.mdpi.com/2072-4292/12/22/3784)
+- [Area Monitoring — Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-mowing-marker-e99cff0c2d08)
+- [Mapping fallow fields using Sentinel-1 and Sentinel-2 archives over farming-pastoral ecotone of Northern China with Google Earth Engine](https://www.tandfonline.com/doi/full/10.1080/15481603.2022.2026638)
+- [Area Monitoring — Bare Soil Marker](https://medium.com/sentinel-hub/area-monitoring-bare-soil-marker-608bc95712ae)
+
+
+```{r setup}
+library(surveyGEER)
+```
+
+
+# References
+

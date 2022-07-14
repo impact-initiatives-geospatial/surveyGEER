@@ -12,6 +12,8 @@ data_share/*
 *.csv
 R/setup_geo_data.R
 vignettes/workflow.Rmd
+
+
 *.xlsx
 data/sample_hh_data.xlsx
 data/metadata.R
@@ -19,3 +21,4 @@ data/metadata.R
 data/*
 map_templates/map_outputs/*
 R/decouple_coordinates.R
+R/*

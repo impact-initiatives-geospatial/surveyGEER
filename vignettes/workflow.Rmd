@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 
 devtools::load_all()
 library(tidyverse)
-library(easyrgee)
+# library(easyrgee)
 library(surveyGEER) # loads example datset as dat
 library(here)
 
@@ -29,8 +29,11 @@ library(here)
 - read in original raw data 
 
 ```{r}
-
-dat |> glimpse()
+path_to_data_csv <-  "enter here"
+dat <-  read_csv(path_to_data_csv)
+longitude_col_name <- "enter here"
+latitude_col_name <-  "enter here"
+uid_col_name <-  "enter_here"
 ```
 
 - run `setup_geo_data` function to anonymize data 
@@ -40,10 +43,10 @@ dat |> glimpse()
 ```{r}
 
 
-setup_geo_data(df = dat,
-               uuid = "_uuid",
-               lon = "_gps_reading_longitude" ,
-               lat = "_gps_reading_latitude" 
+decouple_coordinates(df = dat,
+               uuid = uid_col_name,
+               lon = longitude_col_name ,
+               lat = latitude_col_name 
                )
 
 # done
@@ -63,64 +66,4 @@ lockup is also is anonymous.
 ```{r}
 lookup<- read_rds("vault/lookup.rds")
 ```
-
-at this point it is easy to just use an application like `7zip` to make a password encrypted compressed folder for the `vault` folder.
-
-
-
-### Encryption in R - not necessary
-
-Below i am just playing around with the `cyphr` package. I don't think this is very necessary.
-
-
-- encrypt the file
-- with ssh key we are using assymetric encryption (public + private key)
-```{r}
-user_key_path <- cyphr::ssh_keygen(path = "vault",
-                                   password = rstudioapi::askForPassword()
-                                   )
-
-cyphr::data_admin_init("vault", path_user = user_key_path)
-key <- cyphr::data_key("vault", path_user = user_key_path)
-
-cyphr::encrypt(saveRDS(lookup, "vault/lookup_encrypt.rds"), key)
-readRDS("vault/lookup_encrypt.rds")
-
-```
-
-delete un-encrypted..... eventually we need to link new attributes
-
-```{r}
-
-# doesn't work
-readRDS("vault/lookup_encrypt.rds")
-
-key <- cyphr::data_key(path_data = "vault",path_user = "vault")
-
-cyphr::decrypt(readRDS("vault/lookup_encrypt.rds"),key)
-
-```
-
-- cant i just use symmetric encryption since it's not meant for communication or sharing
-
-
-```{r}
-
-k <-  openssl::aes_keygen()
-actual_key <- cyphr::key_openssl(key = k,mode = "cbc")
-# dir.create("encrypt_sandbox")
-openssl::aes_cbc_encrypt(data = "vault/lookup.rds",key = rstudioapi::askForPassword())
-cyphr:::openssl_find_key()
-path <- Sys.getenv("USER_KEY", "~/.ssh/id_rsa")
-
-?Sys.getenv()
-# key <- cyphr::key_openssl(
-# cyphr::encrypt_data()
-```
-
-
-
-
-
-
 

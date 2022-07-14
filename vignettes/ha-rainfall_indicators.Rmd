@@ -263,7 +263,7 @@ max_precip_3days_kremt2020 <- purrr:::map(.x=roll_windows,
              }
              )
 
-max_precip_5days_kremt <- purrr:::map(.x=roll_windows,
+max_precip_5days_kremt2020 <- purrr:::map(.x=roll_windows,
               .f=function(x){
                ee_max_rolling_sum(
                x = chirps_tidy,
@@ -282,7 +282,7 @@ max_precip_10days_kremt2020 <- purrr:::map(.x=roll_windows,
                x = chirps_tidy,
                roll_window = 10,
                roll_time_unit = "day",
-               from_when = "2022-05-31",
+               from_when = "2020-05-31",
                over_time = x,
                return_tidyee = F
              )
@@ -298,7 +298,7 @@ max_precip_3days_kremt2020_tidyee <- max_precip_3days_kremt2020|>
   purrr::map(~as_tidyee(.x)) |> 
   bind_ics()
 
-max_precip_5days_kremt2020_tidyee <- max_precip_5days_kremt2020|> 
+max_precip_5days_kremt2020_tidyee <- max_precip_5days_kremt2020 |> 
   purrr::map(~as_tidyee(.x)) |> 
   bind_ics()
 max_precip_10days_kremt2020_tidyee <- max_precip_10days_kremt2020 |> 
@@ -306,7 +306,7 @@ max_precip_10days_kremt2020_tidyee <- max_precip_10days_kremt2020 |>
   bind_ics()
 # max_precip_10days_tidyee$ee_ob |> ee_get_date_ic()
 
-max_precip_bands_joined <- max_precip_3days_kremt2020_tidyee |> 
+max_precip_bands_kremt_2020_joined <- max_precip_3days_kremt2020_tidyee |> 
   inner_join(max_precip_5days_kremt2020_tidyee, by = "month") |> 
   inner_join(max_precip_10days_kremt2020_tidyee, by = "month")
 ```

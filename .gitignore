@@ -18,3 +18,4 @@ data/metadata.R
 ^data/eth
 data/*
 map_templates/map_outputs/*
+R/decouple_coordinates.R

@@ -1,6 +1,9 @@
 ---
 title: "ha-rainfall_indicators"
 output: rmarkdown::html_vignette
+bibliography: references.bib
+link-citation: true
+csl: remote_sensing_journal.csl
 vignette: >
   %\VignetteIndexEntry{ha-rainfall_indicators}
   %\VignetteEngine{knitr::rmarkdown}
@@ -13,7 +16,371 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 ```
+## Intro
 
-```{r setup}
-library(surveyGEER)
+This utilizes the [CHIRPS Daily: Climate Hazards Group InfraRed Precipitation With Station Data (Version 2.0 Final)](https://developers.google.com/earth-engine/datasets/catalog/UCSB-CHG_CHIRPS_DAILY) [@funk2015chirps] data set to create a variety of rainfall derived climate indicators that could relate to both flood and drought. 
+
+As more drought indicators are constructed from this data set they will be added to the code in this notebook. 
+
+so far the indicators include:
+
+- Maximum 1 day rainfall in past over specified time frame (30 days, 60 days, growing season, rainy season)
+- Maximum 5 day rainfall in past over specified time frame (30 days, 60 days, growing season, rainy season)
+- Maximum 10 day rainfall in past over specified time frame (30 days, 60 days, growing season, rainy season)
+- Standard Precipitation Index (SPI) using a 1, 3, 6, and 9 month lag times. These SPIs (spi1, spi3, spi6, spi9) are calculated for latest month available from chirps (usually previous) as well as the month of the previous harvest (if provided)
+
+
+Will add some theory on these indicators here in the future.
+
+
+## Parameterize
+
+Below we parameterize the analysis.Make sure to set your country_code in lower case letters below. Additionally in this chunk we define the baseline. The baseline is what we compare our months of interest to to understand if we are above or below "normal." There is no standardized baseline which everyone uses so for now we will go with 2000-2015. In theory this should be the only chunk where the user needs to modify the input.
+```{r}
+country_code <- c("ssd",
+                  "eth",
+                  "som",
+                  "com",
+                  "irq")[2] # modify number in `[]` to select appropriate country code based on order seen here.
+
+baseline_years <- c(2000:2015)
+last_harvest_month <- NULL
+
 ```
+
+Below we load the libraries, custom functions and set some key parameters. 
+
+```{r load_funcs}
+library(surveyGEER)
+library(rgee)
+library(tidyverse)
+library(sf)
+library(tidyrgee)
+ee_Initialize()
+devtools::load_all()
+
+```
+
+Set up daily chirps imageCollection as `tidyee` class
+```{r}
+chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+chirpsIC <- ee$ImageCollection(chirps_link)
+chirps_tidy <- as_tidyee(chirpsIC)  
+
+chirps_time_filtered <- chirps_tidy |> 
+  filter(year==2022)
+
+```
+
+```{r}
+
+# by defining the windows to calculate rolling sum as list I can iterate through each one 
+roll_windows <- list(d30max=30,d60max=60,d90max=90)
+
+max_precip_3days <- purrr:::map(.x=roll_windows,
+              .f=function(x){
+               ee_max_rolling_sum(
+               x = chirps_tidy,
+               roll_window = 3,
+               roll_time_unit = "day",
+               from_when = "2022-05-31",
+               over_time = x,
+               return_tidyee = F
+             )
+             }
+             )
+
+max_precip_5days <- purrr:::map(.x=roll_windows,
+              .f=function(x){
+               ee_max_rolling_sum(
+               x = chirps_tidy,
+               roll_window = 5,
+               roll_time_unit = "day",
+               from_when = "2022-05-31",
+               over_time = x,
+               return_tidyee = F
+             )
+             }
+             )
+
+max_precip_10days <- purrr:::map(.x=roll_windows,
+              .f=function(x){
+               ee_max_rolling_sum(
+               x = chirps_tidy,
+               roll_window = 10,
+               roll_time_unit = "day",
+               from_when = "2022-05-31",
+               over_time = x,
+               return_tidyee = F
+             )
+             }
+             )
+```
+
+
+```{r}
+# seems like the as tidyee art takes some time.....why, can try 1 by 1 to see...
+
+max_precip_3days_tidyee <- max_precip_3days|> 
+  purrr::map(~as_tidyee(.x)) |> 
+  bind_ics()
+
+max_precip_5days_tidyee <- max_precip_5days|> 
+  purrr::map(~as_tidyee(.x)) |> 
+  bind_ics()
+max_precip_10days_tidyee <- max_precip_10days |> 
+  purrr::map(~as_tidyee(.x)) |> 
+  bind_ics()
+max_precip_10days_tidyee$ee_ob |> ee_get_date_ic()
+
+max_precip_bands_joined <- max_precip_3days_tidyee |> 
+  inner_join(max_precip_5days_tidyee, by = "month") |> 
+  inner_join(max_precip_10days_tidyee, by = "month")
+```
+
+# Extract indicators
+
+```{r}
+
+# country_code <-  "eth"
+con <- DBI::dbConnect(RPostgres::Postgres(),
+                      dbname = "global_gdb",
+                      user      = rstudioapi::askForPassword("Database user"),
+                      password      = rstudioapi::askForPassword("Database password"),
+                      port     = 5432)
+
+adm1 <- st_read(con,paste0(country_code,"_adm1")) 
+
+rnd_sample <- st_sample(adm1,size = 100) |>
+  st_sf() |> 
+  rename(geometry=1) |> 
+  mutate(uid=row_number()) |> 
+  st_join(adm1 |> select(adm1_en))
+
+rnd_sample |> 
+  leaflet::leaflet() |>
+  leaflet::addTiles() |> 
+  leaflet::addMarkers()
+# lets see how long 100 pts takes
+system.time(
+  daily_pt_timeseries <- max_precip_bands_joined |> 
+  ee_extract_tidy(y = rnd_sample,scale = 5500, via="drive")
+) # 1118.68
+
+1118.68/60
+library(lubridate)
+daily_pt_timeseries <- daily_pt_timeseries |> 
+  mutate(
+    period_of_interest = case_when (month(date)==5~"30 days",
+                                    month(date)==4~"60 days",
+                                    month(date)==3~"90 days")
+  )
+
+daily_pt_timeseries |> 
+  ggplot(aes(x=period_of_interest,y=value, fill=parameter))+
+  geom_boxplot()
+daily_pt_timeseries |> 
+  group_by(period_of_interest,parameter) |> 
+  summarise(
+    precip_mean_mm= mean(value,na.rm=T),
+    precip_sd = sd(value,na.rm=T)
+  )
+
+```
+
+
+# Playing
+
+```{r}
+# eth
+
+rnd_sample_tigray <- adm1 |> 
+  filter(adm1_en=="Tigray") |> 
+  st_sample(adm1,size = 300) |>
+  st_sf() |> 
+  rename(geometry=1) |> 
+  mutate(uid=row_number()) |> 
+  st_join(adm1 |> select(adm1_en))
+# rnd_sample_som <- som_adm1 |> 
+#   summarise() |> 
+#   st_sample(size=50) |> 
+#   st_sf() |> 
+#   rename(geometry=1) |> 
+#   mutate(uid=row_number()) |> 
+#   st_join(som_adm1 |> select(admin1name))
+
+monthly_rainfall_2020 <- chirps_tidy |> 
+  group_by(year,month) |> 
+  summarise(stat= "sum") |> 
+  filter(year==2020)
+
+monthly_rainfall_2020_somalia_sample <- monthly_rainfall_2020 |> 
+  ee_extract_tidy(y = rnd_sample_som,stat = "median",scale = 5500,via = "drive")
+
+monthly_rainfall_2020_tigray_sample <- monthly_rainfall_2020 |> 
+  ee_extract_tidy(y = rnd_sample_tigray,stat = "median",scale = 5500,via = "drive")
+
+
+monthly_rainfall_2020_somalia_sample |> 
+  ggplot(aes(x= date, y= value))+
+  scale_x_date(date_labels = "%m-%Y", date_breaks = "1 month")+
+  geom_path()+
+  theme_bw()
+
+monthly_rainfall_2020_tigray_sample |> 
+  ggplot(aes(x= date, y= value, group=uid))+
+  scale_x_date(date_labels = "%m-%Y", date_breaks = "1 month")+
+  geom_line(alpha=0.15)+
+  theme_bw()+
+  labs(y="mm",title = "2020 Rainfall at 300 pts in Tigray")
+  
+
+```
+
+
+intensity playing
+```{r}
+rainfall_intensity_tigray_2022 <- max_precip_bands_joined |> 
+   ee_extract_tidy(y = rnd_sample_tigray,stat = "median",scale = 5500,via = "drive")
+
+```
+
+
+# historical baseline ethiopia
+```{r}
+roll_windows <- list(d30max=30,d60max=60,d90max=90)
+
+max_precip_3days_kremt2020 <- purrr:::map(.x=roll_windows,
+              .f=function(x){
+               ee_max_rolling_sum(
+               x = chirps_tidy,
+               roll_window = 3,
+               roll_time_unit = "day",
+               from_when = "2020-05-31",
+               over_time = x,
+               return_tidyee = F
+             )
+             }
+             )
+
+max_precip_5days_kremt <- purrr:::map(.x=roll_windows,
+              .f=function(x){
+               ee_max_rolling_sum(
+               x = chirps_tidy,
+               roll_window = 5,
+               roll_time_unit = "day",
+               from_when = "2020-05-31",
+               over_time = x,
+               return_tidyee = F
+             )
+             }
+             )
+
+max_precip_10days_kremt2020 <- purrr:::map(.x=roll_windows,
+              .f=function(x){
+               ee_max_rolling_sum(
+               x = chirps_tidy,
+               roll_window = 10,
+               roll_time_unit = "day",
+               from_when = "2022-05-31",
+               over_time = x,
+               return_tidyee = F
+             )
+             }
+             )
+```
+
+
+```{r}
+# seems like the as tidyee art takes some time.....why, can try 1 by 1 to see...
+
+max_precip_3days_kremt2020_tidyee <- max_precip_3days_kremt2020|> 
+  purrr::map(~as_tidyee(.x)) |> 
+  bind_ics()
+
+max_precip_5days_kremt2020_tidyee <- max_precip_5days_kremt2020|> 
+  purrr::map(~as_tidyee(.x)) |> 
+  bind_ics()
+max_precip_10days_kremt2020_tidyee <- max_precip_10days_kremt2020 |> 
+  purrr::map(~as_tidyee(.x)) |> 
+  bind_ics()
+# max_precip_10days_tidyee$ee_ob |> ee_get_date_ic()
+
+max_precip_bands_joined <- max_precip_3days_kremt2020_tidyee |> 
+  inner_join(max_precip_5days_kremt2020_tidyee, by = "month") |> 
+  inner_join(max_precip_10days_kremt2020_tidyee, by = "month")
+```
+
+
+
+## Testing Functions
+Should really incorporate these into `test_that`, but they do take while so might be annoying.
+
+```{r, eval=FALSE}
+
+#  time series of daily rain
+awdal_centroid <- som_adm1 |> 
+  slice(1) |> 
+  st_centroid()
+
+daily_pt_timeseries <- chirps_time_filtered |> 
+  filter(month>=4) |> 
+  ee_extract_tidy(y = awdal_centroid,scale = 5500, via="getInfo")
+
+# we see that there are only  2 days with rain... lookin like both around 13-14 mm
+daily_pt_timeseries |> 
+  ggplot(aes(x= date, y= value))+
+  geom_point()
+
+
+
+
+# therefore, lets extend our rolling max sum analysis to 60 days and see if it adds up to the point (24-30 mm)
+# with return_tidyee= T ~ 72 s
+# with retun tidyee= F  ~ 12 s
+
+debugonce(ee_max_rolling_sum)
+system.time(
+  rainfall_3day_max_60days <- ee_max_rolling_sum(
+    x = chirps_tidy,
+    roll_window = 3,
+    roll_time_unit = "day",
+    from_when = "2022-05-31",
+    over_time = 60,
+    return_tidyee = F)
+)
+
+
+
+
+# should just be 1 value?
+pt_max_3day_over_60days <- rainfall_3day_max_60days |> 
+  ee_extract_tidy(y = awdal_centroid  ,scale = 5500, via="getInfo")
+
+pt_max_3day_over_60days# that looks right! and the date appears to be the start_date after the over_time is deducted.... this seems right
+#reprex
+
+chirps_img <- chirpsIC$first()
+chirps_img |> 
+  ee_extract_tidy(y = awdal_centroid  ,scale = 5500, via="getInfo")
+
+
+rainfall_3day_max_60days$vrt |> 
+  unnest(dates_summarised) |> 
+  print(n=58)
+
+
+max_composite_2mo <- chirps_tidy |> 
+  filter(month>=4) |> 
+  summarise(
+    stat= "sum"
+  )
+
+pt_2mo_sum <- max_composite_2mo |> 
+  ee_extract_tidy(y = awdal_centroid,scale = 5500, via="getInfo")
+
+pt_2mo_sum
+
+
+```
+

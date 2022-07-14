@@ -203,3 +203,4 @@ ee_rolling_statistic2 <-  function(x=monthly_rainfall,
 
 
 
+

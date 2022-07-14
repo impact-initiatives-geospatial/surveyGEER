@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Intro
 
-This utilizes the [MODIS Terra Vegetation Indices 16-Day Global 250 m ](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD13Q1) data set to create a variety of drought indicators. They indicators are then aggregated to hexagon grid which is output for QGIS map automation and visualization through the `Atlas` functionality.
+This utilizes the [MODIS Terra Vegetation Indices 16-Day Global 250 m ](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD13Q1)[@funk2015chirps] data set to create a variety of drought indicators. They indicators are then aggregated to hexagon grid which is output for QGIS map automation and visualization through the `Atlas` functionality.
 
 As more drought indicators are constructed from this data set they will be added to the code in this notebook. 
 

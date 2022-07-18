@@ -21,4 +21,4 @@ data/metadata.R
 data/*
 map_templates/map_outputs/*
 R/decouple_coordinates.R
-R/*
+

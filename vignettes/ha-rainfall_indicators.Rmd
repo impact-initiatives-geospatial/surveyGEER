@@ -311,7 +311,33 @@ max_precip_bands_kremt_2020_joined <- max_precip_3days_kremt2020_tidyee |>
   inner_join(max_precip_10days_kremt2020_tidyee, by = "month")
 ```
 
+```{r}
 
+rainfall_intensity_tigray_2020 <- max_precip_bands_kremt_2020_joined |> 
+   ee_extract_tidy(y = rnd_sample_tigray,stat = "median",scale = 5500,via = "drive")
+```
+
+
+```{r}
+library(lubridate)
+rainfall_intensity_tigray <- rainfall_intensity_tigray_2020 |> 
+  mutate(year= year(date)) |> 
+  bind_rows(
+    rainfall_intensity_tigray_2022 |> 
+      mutate(year= year(date))
+  ) |> 
+    mutate(
+    period_of_interest = case_when (month(date)==5~"30 days",
+                                    month(date)==4~"60 days",
+                                    month(date)==3~"90 days")
+  )
+rainfall_intensity_tigray |> 
+  filter(period_of_interest=="60 days") |> 
+  ggplot(aes(x=parameter, y=value,fill = as.factor(year)))+
+  geom_boxplot()
+
+
+```
 
 ## Testing Functions
 Should really incorporate these into `test_that`, but they do take while so might be annoying.

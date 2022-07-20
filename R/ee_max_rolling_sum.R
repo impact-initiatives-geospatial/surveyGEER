@@ -53,7 +53,7 @@ ee_max_rolling_sum <- function(x, roll_window,roll_time_unit="day",from_when=NUL
                                                   window = roll_window,
                                                   time_unit = roll_time_unit,
                                                   return_tidyee = return_tidyee)
-  cat("rolling sum finished")
+  cat("rolling sum finished\n")
   if(is.null(from_when)){
     if(return_tidyee){
       cat("getting last date in collection\n")
@@ -83,7 +83,8 @@ ee_max_rolling_sum <- function(x, roll_window,roll_time_unit="day",from_when=NUL
 
     max_rolling_sum <- rolling_sum_collection_filtered$
       max()$
-      set('system:time_start',ee$Date(start_date))
+      set('system:time_start',ee$Date(start_date))$
+      set('month',ee$Date(start_date)$get("month"))
   }
   if(return_tidyee){
     start_date_r <- start_date |> rgee::eedate_to_rdate() |> lubridate::as_date()

@@ -1,9 +1,9 @@
 #' ee_spi calculate standard precipitation index
 #'
-#' @param x
-#' @param window
-#' @param window_unit
-#' @param ic_time_unit
+#' @param x tidyee imageCollection
+#' @param window window of time to calculate sPI
+#' @param window_unit unit o ftime to calculate
+#' @param ic_time_unit imagecollection time unit
 #' @param band name of band
 #' @param moi month of interest. (i.e if moi =4 and window is 3 months then the SPI is FMA)
 #'
@@ -90,9 +90,9 @@ ee_spi <- function(x,
 
 #' ee_chirps_spi calculate standard precipitation index from chirps daily
 #'
-#' @param x
-#' @param window
-#' @param window_unit
+#' @param x tidyee ee$ImageCollection
+#' @param window window to calculate spi over
+#' @param window_unit time unit of window (month only)
 #' @param band name of band
 #' @param moi month of interest. (i.e if moi =4 and window is 3 months then the SPI is FMA)
 #'
@@ -131,12 +131,15 @@ ee_chirps_spi <- function(x=NULL,
     x <-  as_tidyee(ic)
   }
 
-  x_year_month <-  x |>
-    group_by(year, month) |>
-    summarise(
-      stat="sum"
-    )
-  new_band_name <-  glue::glue("{band}_sum")
+  # this grouping could be causing the samll difference with unosat values....
+  x_year_month <-  x #|>
+    # group_by(year, month) |>
+    # summarise(
+      # stat="sum"
+    # )
+
+  # if no sum, then need to remove it
+  new_band_name <-  glue::glue("{band}")#_sum")
 
   cat("beginning SPI func - expect 2-3 minutes\n")
   spi_tidyee <- ee_spi(x=x_year_month,

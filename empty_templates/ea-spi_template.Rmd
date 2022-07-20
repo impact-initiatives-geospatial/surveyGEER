@@ -51,7 +51,38 @@ Below we are calculating  the 3 month SPI for March. It can take a few minutes. 
 
 ```{r}
 spi_3<- ee_chirps_spi(window = 3,window_unit = "month",moi = c(3,4,5))
+
+# debugonce(ee_chirps_spi)
+spi_3<- ee_chirps_spi(window = 3,window_unit = "month",moi = c(5))
 ```
+
+
+# For testing against UNOSAT SPYDER script
+```{r}
+# from sample_pt GEE script
+# https://code.earthengine.google.com/81b35aeecd53a8eaa3f24b58287d6f25?noload=true
+
+sample_pt <- data.frame(y =c(48.8768913678698,48.86701823455106,48.82226063783573),
+                        x=c(7.405370766109236,6.530191390323885,6.527364875888308)
+                        )|> 
+  st_as_sf(coords=c("y","x"), crs=4326)
+sample_pt_ee <- sf_as_ee(sample_pt)
+leaflet::leaflet(sample_pt) |> 
+  leaflet::addTiles() |> 
+  leaflet::addMarkers()
+
+sample_pt_val <- spi_3 |> 
+  filter(year==2022) |> 
+  ee_extract_tidy(y = sample_pt_ee,stat = "median",scale = 5500, via = "getInfo")
+
+sample_pt_val_from_survey <- sample_pt_val |> pull(value)
+options(digits=8)
+sample_vals_from_unosat_img <- c(-1.5136904122787513,1.3624714490958623,-1.3612546106517207)
+
+?float
+sample_pt_val_from_survey[1]==sample_vals_from_unosat_img[1]
+```
+
 Now that you have this collection of SPI images. Let's extract it to our areas of interest.
 
 ## Zonal Statistics

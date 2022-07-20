@@ -89,7 +89,11 @@ get_roll_dates <-  function(x, window,time_unit){
     dplyr::arrange(time_start) |>
     dplyr::pull(time_start) |>
     lubridate::as_date() |>
-    lubridate::floor_date(unit =time_unit) |>
+    # trying ceiling date- idea is that should not have to sum by year,month as first step in
+    # spi
+    lubridate::ceiling_date(unit=time_unit) |>
+    lubridate::rollback() |>
+    # lubridate::floor_date(unit =time_unit) |>
     unique()
 
   # can only lag to the month_lag + 1 th earliest record
@@ -143,6 +147,7 @@ ee_rolling_statistic2 <-  function(x=monthly_rainfall,
     dates_to_map$map( rgee::ee_utils_pyfunc(function (monthly_sum){
 
       startTime <-  ee$Date(monthly_sum)$advance(ee$Number$parse(as.character(window))$multiply(-1), time_unit)
+      # endTime <- ee$Date(monthly_sum)$advance(1,"day") # changing it now that we are not first summing by year,mo
       endTime <- ee$Date(monthly_sum)$advance(1,"day")
       filtered_ic <-  ic$filterDate(startTime, endTime)
       imageAmount = filtered_ic$size()

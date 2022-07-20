@@ -1,0 +1,168 @@
+---
+title: "Static Indicators"
+subtitle: "Indicators From Images Not ImageCollections" 
+author: Zack Arno
+output: rmarkdown::html_vignette
+bibliography: references.bib
+link-citation: true
+csl: remote_sensing_journal.csl
+vignette: >
+  %\VignetteIndexEntry{ia-non_climate_GEE_indicators}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval=F
+)
+```
+
+
+
+# Intro
+This notebook will demonstrate how several non-climate indicators are created. We will load the images, map them, and then combine them all into one multi-band image for extraction purposes. At the end I will wrap the process into one function which will be available in the `surveyGEER` library
+
+# Non- climate related indicators
+- Access to cities [@Weiss2018]
+- Access to healthcare facilities [@Weiss2020]
+- Access to healthcare facilities (walking) [@Weiss2020]
+- SRTM Landforms [@theobald2015_srtm_landforms]
+- ALOS Landforms [@theobald2015_srtm_landforms]
+
+
+# Load Images
+- load libraries
+- load images
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(sf)
+ee_Initialize()
+```
+
+```{r}
+city_access <- ee$Image("Oxford/MAP/accessibility_to_cities_2015_v1_0")
+healthcare_access <- ee$Image("Oxford/MAP/accessibility_to_healthcare_2019")
+srtm_landforms = ee$Image("CSP/ERGo/1_0/Global/SRTM_landforms")
+alos_landforms = ee$Image("CSP/ERGo/1_0/Global/ALOS_landforms")
+srtm_dem <-  ee$Image("CGIAR/SRTM90_V4")
+
+# lets use the bounding box of somalia to center our map
+ee_bbox <- sf::st_bbox(som_boundary) |> 
+  sf::st_as_sfc() |> 
+  sf_as_ee()
+
+```
+
+
+# Maps
+
+Below we set the visualization parameters for each map and save each map to an object.
+```{r visualize}
+somalia_city_access_viz <- list(min=0,
+                   max= 1000,
+                   palette=list("#green","yellow","red")
+)
+somalia_health_access_viz <- list(min=0,
+                   max= 1000,
+                   palette=list("gred","yellow","red"), 
+                   bands=list("accessibility")
+)
+somalia_health_access_walking_viz <- list(min=0,
+                   max= 1000,
+                   palette=list("green","yellow","red"), 
+                   bands=list("accessibility_walking_only")
+)
+srtm_viz <- get_metadata_palette_viz(srtm_landforms,bands = "constant")
+
+
+m1_city_access2015 <- Map$addLayer(
+  city_access,
+  visParams = somalia_city_access_viz
+  )
+
+m2_health_access2019 <- Map$addLayer(
+  healthcare_access,
+  visParams = somalia_health_access_viz
+  )
+
+m3_health_access_walking_2019 <- Map$addLayer(
+  healthcare_access,
+  visParams = somalia_health_access_walking_viz
+  )
+
+m4_srtm_landform<- Map$addLayer(srtm_landforms,visParams = srtm_viz,"srtm_landform")
+
+```
+
+
+We can then map all the layers at once 
+```{r}
+Map$centerObject(ee_bbox,6)
+m1_city_access2015+
+  m2_health_access2019+
+  m3_health_access_walking_2019+
+  m4_srtm_landform
+  
+```
+
+
+# Joining Bands
+
+If we want to extract this values to points or zones (polygons) later it will be easiest to just combine them into one multi-band image that we can just perform one `ee_extract` or `ee_extract_tidy` on.
+
+```{r}
+city_access$
+  select("accessibility")$
+  rename("city_accessibility2015")$
+  addBands(
+    healthcare_access$select(list("accessibility","accessibility_walking_only"))$
+      rename(list("healthcare_accessibility2019","healthcare_accessbility_walking_only2019"))
+    )$
+  addBands(srtm_landforms$rename("srtm_landforms"))$
+  addBands(alos_landforms$rename("alos_landforms"))$
+  addBands(srtm_dem$rename("srtm4_dem"))$
+  bandNames()$getInfo()
+
+```
+
+
+# Putting it all together!
+
+Below we put the above into one generic function. This function has also been added to the `surveyGEER` library for portability.
+```{r}
+
+#' get_non_climate_indicators
+#'
+#' @return  ee$Image with one band for each indicator
+#' @export
+#'
+#' @examples \dontrun{
+#' library(surveyGEER)
+#' non_climate_indicators<-get_non_climate_indicators()
+#' }
+#' 
+get_non_climate_indicators <-  function(){
+  city_access <- ee$Image("Oxford/MAP/accessibility_to_cities_2015_v1_0")
+  healthcare_access <- ee$Image("Oxford/MAP/accessibility_to_healthcare_2019")
+  srtm_landforms = ee$Image("CSP/ERGo/1_0/Global/SRTM_landforms")
+  alos_landforms = ee$Image("CSP/ERGo/1_0/Global/ALOS_landforms")
+  city_access$
+  select("accessibility")$
+  rename("city_accessibility2015")$
+  addBands(
+    healthcare_access$select(list("accessibility","accessibility_walking_only"))$
+      rename(list("healthcare_accessibility2019","healthcare_accessbility_walking_only2019"))
+    )$
+  addBands(srtm_landforms$rename("srtm_landforms"))$
+  addBands(alos_landforms$rename("alos_landforms"))
+}
+
+
+```
+
+# References

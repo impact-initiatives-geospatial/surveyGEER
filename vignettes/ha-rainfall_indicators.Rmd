@@ -120,6 +120,8 @@ max_precip_10days <- purrr:::map(.x=roll_windows,
 
 ```{r}
 # seems like the as tidyee art takes some time.....why, can try 1 by 1 to see...
+test <- ee$ImageCollection$fromImages(ee$List(max_precip_3days |> unname()))
+test |> ee_print()
 
 max_precip_3days_tidyee <- max_precip_3days|> 
   purrr::map(~as_tidyee(.x)) |> 
@@ -179,6 +181,7 @@ daily_pt_timeseries <- daily_pt_timeseries |>
 daily_pt_timeseries |> 
   ggplot(aes(x=period_of_interest,y=value, fill=parameter))+
   geom_boxplot()
+
 daily_pt_timeseries |> 
   group_by(period_of_interest,parameter) |> 
   summarise(

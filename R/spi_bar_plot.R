@@ -1,7 +1,7 @@
 #' spi_bar_plot_faceted
 #'
-#' @param df
-#' @param zone
+#' @param df data.frame
+#' @param zone zone column to facet by
 #'
 #' @return typical SPI barplot faceted by zone of choice
 #' @export
@@ -25,6 +25,7 @@
 #' spi_bar_plot_faceted(spi_3_adm1,zone ="admin1name")
 #' }
 #'
+
 spi_bar_plot_faceted <-  function(df, zone){
   assertthat::assert_that(all(c("date","value",zone) %in% names(df)))
   plt<- spi_bar_plot(df)+

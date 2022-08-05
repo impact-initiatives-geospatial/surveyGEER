@@ -135,13 +135,16 @@ Map$addLayer(geom, {})+
 ```{r}
 water_pixels_in_geom <- water_yearly_tidy |> 
   ee_extract_tidy(y = geom, scale = 30,stat = "sum")
+```
 
+- Plot time series
+```{r}
 water_pixels_in_geom |> 
   mutate(area_km2 = (value*30*30)*1e-6) |> 
   ggplot(aes(x= date,y=area_km2))+
   # geom_point()+
   geom_line()+
   scale_x_date(date_breaks = "1 year",date_labels = "%Y")+
-  labs(x="Date", y="Area (Km2)",title= "Reservoir Area")+
+  labs(x="Date", y="Area (Km2)",title= "Approximate Reservoir Area")+
   theme_bw()
 ```

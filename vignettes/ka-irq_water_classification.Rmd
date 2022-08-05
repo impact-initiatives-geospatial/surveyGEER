@@ -1,0 +1,147 @@
+---
+title: "ka-irq_water_classification"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ka-irq_water_classification}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(tidverse)
+library(sf)
+library(tidyrgee)
+devtools::load_all()
+ee_Initialize()
+```
+
+
+Load in AOI and check on map
+```{r}
+geom <- ee$Geometry$Polygon(list(
+      c(44.2354847930793, 34.83077069846819),
+          c(44.261577322376176, 34.692001577255105),
+          c(44.40851946104805, 34.511140220037795),
+          c(44.607646658313676, 34.47152432533435),
+          c(44.687297537219926, 34.58918498051208),
+          c(44.5211293243293, 34.75069665768057),
+          c(44.393413259876176, 34.810477595189816),
+          c(44.28217668761055, 34.88598770009403),
+          c(44.223125173938676, 34.84316957807562)
+    ))
+Map$addLayer(geom,{},"geom")
+```
+
+
+**Some pre-processing**
+- filter temporally and spatially to area of interest
+- remove images with >= 25% cloud cover
+- rename bands
+
+```{r}
+
+l8_ic <-  ee$ImageCollection('LANDSAT/LC08/C02/T1_L2')$
+  filterDate("2013-01-01","2022-12-31")$
+  filterBounds(geom)$
+  filter(ee$Filter$lt('CLOUD_COVER', 25))$
+  select(list('SR_B2', 'SR_B3', 'SR_B4','SR_B5', 'SR_B6', 'SR_B7'),
+         list('blue', 'green', 'red', 'nir', 'swir1', 'swir2')
+  )
+```
+
+- Convert to tidy format for easy monthly composites
+- Filter to just April months
+```{r}
+l8_ic_tidy <-   as_tidyee(l8_ic)
+
+
+l8_median_april <- l8_ic_tidy |> 
+  group_by(year, month) |> 
+  summarise(
+    stat="median"
+  ) |> 
+  ungroup() |> 
+  filter(month==4) 
+```
+
+
+- Create MNDWI Masks
+```{r}
+
+l8_median_april_mndwi1 <- l8_median_april$ee_ob$map(
+  function(img){
+    time_start <- img$get("system:time_start")
+    img_mndwi <- img$normalizedDifference(list('green_median', 'swir1_median'))$
+      rename("mndw1")
+      return(img_mndwi$set("system:time_start",time_start))
+  }
+  
+)
+
+l8_median_april_mndwi2 <- l8_median_april$ee_ob$map(
+  function(img){
+    time_start <- img$get("system:time_start")
+    img_mndwi <- img$normalizedDifference(list('green_median', 'swir2_median'))$
+      rename("mndw2")
+    return(img_mndwi$set("system:time_start",time_start))
+  }
+)
+```
+
+- Convert back to tidyee class for easy joinning
+- Now we have an IC with 2 bands
+- we can create out water_mask using the two bands.
+
+```{r}
+mndwi_tidy <- as_tidyee(l8_median_april_mndwi1)
+mndwi2_tidy <- as_tidyee(l8_median_april_mndwi2)
+
+mndwi_tidy <- mndwi_tidy |> 
+  inner_join(mndwi2_tidy, by ="system:time_start")
+
+water_yearly = mndw_tidy$ee_ob$map(
+  function(img){
+    time_start <- img$get("system:time_start")
+    img$
+      select("mndw1")$gte(0)$
+      And(img$select("mndw2")$gte(0))$
+      set("system:time_start",time_start)$rename("water")
+  }
+)
+water_yearly_tidy <- as_tidyee(water_yearly)
+
+```
+
+- Visualize to make sure results make sense
+```{r}
+Map$centerObject(geom, 10)
+Map$addLayer(geom, {})+
+  Map$addLayer(water_yearly_tidy$ee_ob$first(),
+               visParams= list(min=0,max=1,palette=c("white","black")),
+               "water")
+```
+
+
+- Extract time series
+```{r}
+water_pixels_in_geom <- water_yearly_tidy |> 
+  ee_extract_tidy(y = geom, scale = 30,stat = "sum")
+
+water_pixels_in_geom |> 
+  mutate(area_km2 = (value*30*30)*1e-6) |> 
+  ggplot(aes(x= date,y=area_km2))+
+  # geom_point()+
+  geom_line()+
+  scale_x_date(date_breaks = "1 year",date_labels = "%Y")+
+  labs(x="Date", y="Area (Km2)",title= "Reservoir Area")+
+  theme_bw()
+```

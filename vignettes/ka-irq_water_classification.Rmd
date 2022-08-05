@@ -123,11 +123,37 @@ water_yearly_tidy <- as_tidyee(water_yearly)
 
 - Visualize to make sure results make sense
 ```{r}
+years_to_map <-  2013:2022
+years_to_map <- years_to_map |> 
+  set_names(paste0(years_to_map,"_water"))
+
+yearly_water_maps <- years_to_map |> 
+  purrr::map2(.y =names(years_to_map),
+    ~Map$addLayer(
+      water_yearly_tidy |>
+      filter(year==.x) |> 
+      as_ee(),
+      visParams= list(min=0,max=1,palette=c("white","blue")),
+      name=.y
+  )
+  )
+
 Map$centerObject(geom, 10)
-Map$addLayer(geom, {})+
-  Map$addLayer(water_yearly_tidy$ee_ob$first(),
-               visParams= list(min=0,max=1,palette=c("white","black")),
-               "water")
+yearly_water_maps$`2013_water`+
+  yearly_water_maps$`2014_water`+
+  yearly_water_maps$`2015_water`+
+  yearly_water_maps$`2016_water`+
+  yearly_water_maps$`2017_water`+
+  yearly_water_maps$`2018_water`+
+  yearly_water_maps$`2019_water`+
+  yearly_water_maps$`2020_water`+
+  yearly_water_maps$`2021_water`+
+  yearly_water_maps$`2022_water`
+
+  
+    
+    
+
 ```
 
 

@@ -139,6 +139,7 @@ yearly_water_maps <- years_to_map |>
   )
 
 Map$centerObject(geom, 10)
+
 yearly_water_maps$`2013_water`+
   yearly_water_maps$`2014_water`+
   yearly_water_maps$`2015_water`+
@@ -148,12 +149,8 @@ yearly_water_maps$`2013_water`+
   yearly_water_maps$`2019_water`+
   yearly_water_maps$`2020_water`+
   yearly_water_maps$`2021_water`+
-  yearly_water_maps$`2022_water`
-
-  
-    
-    
-
+  yearly_water_maps$`2022_water`+
+  Map$addLayer(geom,{})
 ```
 
 
@@ -170,6 +167,7 @@ water_pixels_in_geom |>
   ggplot(aes(x= date,y=area_km2))+
   # geom_point()+
   geom_line()+
+  geom_point()+
   scale_x_date(date_breaks = "1 year",date_labels = "%Y")+
   labs(x="Date", y="Area (Km2)",title= "Approximate Reservoir Area")+
   theme_bw()

@@ -153,3 +153,46 @@ ee_chirps_spi <- function(x=NULL,
   return(spi_tidyee)
 
 }
+
+
+
+extract_spi_to_values <-  function(geom_sf,mo_lags= list(1,3,6,9,12),moi=5){
+  # target wrapper specific assertion
+  assertthat::assert_that(length(moi)==1,
+                          msg = "targets extract wrapper not tested with mois>1"
+                          )
+
+  cat("calculating SPIs on pixel-basis\n")
+  moi_label <- lubridate::month(moi, label=T, abbr= T) |> as.character()
+  spi_imgs <- mo_lags |>
+    purrr::map(
+      ~ee_chirps_spi(window = .x,window_unit = "month",moi = moi)
+    )
+  spi_imgs_2022 <- spi_imgs |>
+    purrr::map(
+      ~.x |> filter(year>=2022)
+    )
+  spis_2022 <- purrr:::reduce(.x=spi_imgs_2022,.f = inner_join, by ="month")
+  # if this is an image we might be better of with sampleRegions
+  cat(class(spis_2022$ee_ob))
+  cat("extracting spi to points\n")
+  spis_2022_img <- ee$Image(spis_2022$ee_ob$first())
+  # spis_2022_img <- ee$Image(spis_2022_imgs$ee_ob$first())
+  geom_ee <-  rgee::sf_as_ee(geom_sf)
+
+  fc_values <- spis_2022_img$
+    sampleRegions(collection= geom_ee,
+                  scale= 5500)
+  cat("converting extracting feature collection to data.frame")
+  df_values <-  rgee::ee_as_sf(fc_values)
+  res <- df_values |>
+    rename_with(.cols = matches("^precipitation"),
+                .fn = ~glue::glue("{moi_label}_spi{readr::parse_number(.x)}"))
+  return(res)
+
+  # res <- spis_2022 |>
+    # ee_extract_tidy(y = geom_sf,stat = "median",scale = 5500,via = "gcs")
+  # return(spis_2022)
+
+}
+

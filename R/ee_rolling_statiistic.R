@@ -82,6 +82,7 @@ ee_rolling_statistic <-  function(x,stat, window,time_unit){
 #' chirps_tidy <- as_tidyee(chirps)
 #' dates_to_map <- get_roll_dates(x=chirps_tidy, window=3,time_unit="month")
 #' }
+
 get_roll_dates <-  function(x, window,time_unit){
 
   # get all unique dates floored to month
@@ -91,10 +92,13 @@ get_roll_dates <-  function(x, window,time_unit){
     lubridate::as_date() |>
     # trying ceiling date- idea is that should not have to sum by year,month as first step in
     # spi
-    lubridate::ceiling_date(unit=time_unit) |>
-    lubridate::rollback() |>
-    # lubridate::floor_date(unit =time_unit) |>
-    unique()
+    lubridate::ceiling_date(unit=time_unit)
+  if(time_unit=="month"){
+    date_vec <- date_vec |>
+      lubridate::rollback()
+  }
+
+  date_vec <- date_vec |> unique()
 
   # can only lag to the month_lag + 1 th earliest record
   roll_dates <- date_vec[-c(1:window)] |> as.character()
@@ -188,7 +192,7 @@ ee_rolling_statistic2 <-  function(x=monthly_rainfall,
   if("ee.imagecollection.ImageCollection"%in%class(summarised_composite_ic) ){
     bnames <- summarised_composite_ic$first()$bandNames()$getInfo()
     replace_rgx <- glue::glue("_{stat}$")
-    new_bnames <- str_replace_all(bnames,replace_rgx,name_suffix)
+    new_bnames <- stringr::str_replace_all(bnames,replace_rgx,name_suffix)
     ee_ob_renamed <- summarised_composite_ic$map(
       function(img){
         img$rename(new_bnames)

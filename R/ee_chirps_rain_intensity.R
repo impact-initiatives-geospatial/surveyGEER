@@ -6,7 +6,7 @@
 #' @return ee$ImageCollection
 #' @export
 #'
-ee_chirps_rain_intensity <-  function(convert_tidyee=F){
+ee_chirps_rain_intensity <-  function(convert_tidyee=F,from_when = "2022-05-31"){
   chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
   chirpsIC <- ee$ImageCollection(chirps_link)
   chirps_tidy <- as_tidyee(chirpsIC)
@@ -22,7 +22,7 @@ ee_chirps_rain_intensity <-  function(convert_tidyee=F){
                                       x = chirps_tidy,
                                       roll_window = 3,
                                       roll_time_unit = "day",
-                                      from_when = "2022-05-31",
+                                      from_when = from_when,
                                       over_time = x,
                                       return_tidyee = F
                                     )
@@ -35,7 +35,7 @@ ee_chirps_rain_intensity <-  function(convert_tidyee=F){
                                       x = chirps_tidy,
                                       roll_window = 5,
                                       roll_time_unit = "day",
-                                      from_when = "2022-05-31",
+                                      from_when = from_when,
                                       over_time = x,
                                       return_tidyee = F
                                     )
@@ -48,7 +48,7 @@ ee_chirps_rain_intensity <-  function(convert_tidyee=F){
                                        x = chirps_tidy,
                                        roll_window = 10,
                                        roll_time_unit = "day",
-                                       from_when = "2022-05-31",
+                                       from_when =from_when,
                                        over_time = x,
                                        return_tidyee = F
                                      )
@@ -101,3 +101,22 @@ ee_chirps_rain_intensity <-  function(convert_tidyee=F){
 
 }
 
+
+
+
+#' extract_chirps_rain_intensity
+#' @description wrapper for ee_chirps_rain_intensity for purpose of creating target
+#' @param geom_sf geometric unit to extract to
+#' @return data.frame with rainfall intensity for each unit of geom_sf
+#' @export
+#'
+#' @examples
+extract_chirps_rain_intensity <- function(geom_sf,from_when){
+  cat("calculating rainfall intensity\n")
+  chirps_rainfall_intensity<-ee_chirps_rain_intensity(convert_tidyee = T,from_when=from_when)
+  cat("extracting rainfall intesnity\n")
+
+  res <- chirps_rainfall_intensity |>
+  ee_extract_tidy(y = geom_sf,stat = "median",scale = 5500,via = "drive")
+  return(res)
+}

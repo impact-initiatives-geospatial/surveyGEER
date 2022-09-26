@@ -4,7 +4,7 @@
 \alias{ee_chirps_rain_intensity}
 \title{ee_chirps_rain_intensity wrapper for processes to calculate rainfall intensity parameters}
 \usage{
-ee_chirps_rain_intensity(convert_tidyee = F)
+ee_chirps_rain_intensity(convert_tidyee = F, from_when = "2022-05-31")
 }
 \arguments{
 \item{convert_tidyee}{temporary parameter for testing}

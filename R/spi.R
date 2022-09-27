@@ -6,6 +6,8 @@
 #' @param ic_time_unit imagecollection time unit
 #' @param band name of band
 #' @param moi month of interest. (i.e if moi =4 and window is 3 months then the SPI is FMA)
+#' @param use_tidyee default = T , no option for F at the moment.
+#' @details By harnessing tidyee with `use_tidyee=T` we don't have any
 #'
 #' @return
 #' @export
@@ -73,7 +75,7 @@ ee_spi <- function(x,
           opt_map= list(precip_current= img$select(rolling_band_name),
 
                         precip_baseline_mean= img$select(glue::glue("{rolling_band_name}_mean")),
-                        precip_baseline_sd= img$select(glue::glue("{rolling_band_name}_stdDev"))
+                        precip_baseline_sd= img$select(glue::glue("{rolling_band_name}_sd"))
           )
         )$rename(new_spi_band_name)
         img$select(rolling_band_name)$addBands(zscore)
@@ -184,7 +186,12 @@ extract_spi_to_values <-  function(geom_sf,mo_lags= list(1,3,6,9,12),moi=5){
     sampleRegions(collection= geom_ee,
                   scale= 5500)
   cat("converting extracting feature collection to data.frame")
-  df_values <-  rgee::ee_as_sf(fc_values)
+  if(nrow(geom_sf)>5000){
+    df_values <-  rgee::ee_as_sf(fc_values,via="drive")
+  }
+  if(nrow(geom_sf)<=5000){
+    df_values <-  rgee::ee_as_sf(fc_values)
+  }
   res <- df_values |>
     rename_with(.cols = matches("^precipitation"),
                 .fn = ~glue::glue("{moi_label}_spi{readr::parse_number(.x)}"))

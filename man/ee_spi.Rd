@@ -26,12 +26,17 @@ ee_spi(
 \item{band}{name of band}
 
 \item{moi}{month of interest. (i.e if moi =4 and window is 3 months then the SPI is FMA)}
+
+\item{use_tidyee}{default = T , no option for F at the moment.}
 }
 \value{
 
 }
 \description{
 ee_spi calculate standard precipitation index
+}
+\details{
+By harnessing tidyee with `use_tidyee=T` we don't have any
 }
 \examples{
 \dontrun{

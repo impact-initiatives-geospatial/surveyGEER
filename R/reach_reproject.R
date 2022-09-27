@@ -24,7 +24,8 @@ epsg_lookup <- function(){
     "ssd",32636L,"WGS 84 / UTM zone 36N",
     "nga",32632L,"WGS 84 / UTM zone 32N",
     "ukr",32636L,"WGS 84 / UTM zone 36N",
-    "mli",32629L,"WGS 84/UTM zone 29N"
+    "mli",32629L,"WGS 84/UTM zone 29N",
+    "ner",32633L,"WGS 84 / UTM zone 33N"
   )}
 
 

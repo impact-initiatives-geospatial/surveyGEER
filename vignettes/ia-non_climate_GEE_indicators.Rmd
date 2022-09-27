@@ -136,6 +136,55 @@ city_access$
 Below we put the above into one generic function. This function has also been added to the `surveyGEER` library for portability.
 ```{r}
 
+#' get_oxford_access_indicators
+#'
+#' @return multi-band image with
+#' @export
+#'
+#' @examples
+get_oxford_access_indicators <- function(return_tidyee=F){
+  city_access <- ee$Image("Oxford/MAP/accessibility_to_cities_2015_v1_0")
+  healthcare_access <- ee$Image("Oxford/MAP/accessibility_to_healthcare_2019")
+  city_access <- city_access$set("system:time_start",ee$Date("2015-01-01"))
+  healthcare_access <- healthcare_access$set("system:time_start",ee$Date("2019-01-01"))
+  
+  
+  res <- city_access$
+  select("accessibility")$
+  rename("city_accessibility2015")$
+  addBands(
+    healthcare_access$select(list("accessibility","accessibility_walking_only"))$
+      rename(list("healthcare_accessibility2019","healthcare_accessbility_walking_only2019"))
+    )
+  if(return_tidyee){
+    res <- as_tidyee(res)
+  }
+  return(res)
+}
+
+#' get_geomorph_landforms
+#'
+#' @return image or tidyee with image
+#' @export
+#'
+#' @examples
+get_geomorph_landform_indicators <-  function(return_tidyee=F){
+  srtm_landforms = ee$Image("CSP/ERGo/1_0/Global/SRTM_landforms")
+  alos_landforms = ee$Image("CSP/ERGo/1_0/Global/ALOS_landforms")
+  # ee_get_date_img(srtm_landforms)
+  res <- srtm_landforms$
+    rename("srtm_landforms")$
+    set("system:time_start",ee$Date("2022-01-01"))$
+    addBands(alos_landforms$rename("alos_landforms"))
+  if(return_tidyee){
+    res <- as_tidyee(res)
+  }
+  
+  return(res)
+  
+}
+
+
 #' get_non_climate_indicators
 #'
 #' @return  ee$Image with one band for each indicator
@@ -151,6 +200,8 @@ get_non_climate_indicators <-  function(){
   healthcare_access <- ee$Image("Oxford/MAP/accessibility_to_healthcare_2019")
   srtm_landforms = ee$Image("CSP/ERGo/1_0/Global/SRTM_landforms")
   alos_landforms = ee$Image("CSP/ERGo/1_0/Global/ALOS_landforms")
+  
+  
   city_access$
   select("accessibility")$
   rename("city_accessibility2015")$

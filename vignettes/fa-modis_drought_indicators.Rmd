@@ -243,6 +243,123 @@ if(nrow(hex_grid_clipped)<=16000){
 
 ```
 
+# putting it all together
+```{r}
+
+#' ee_modis_drought_indicators
+#'
+#' @param baseline_years 
+#' @param yoi 
+#'
+#' @return tidyee containtin imageCollection with drought indicators
+#' @export
+#'
+#' @examples
+ee_modis_drought_indicators <-  function(baseline_years =c(2000:2015), yoi=c(2021:2022)){
+  
+  
+  modis_link <- "MODIS/006/MOD13Q1"
+  modisIC <- ee$ImageCollection(modis_link)
+  
+  # rescale
+  modis_ndvi <- modisIC$
+    select("NDVI")$
+    map(
+      ee_utils_pyfunc(
+        function(x){x$
+            multiply(0.0001)$
+            copyProperties(x,x$propertyNames())
+        }
+      )
+    )
+  # convert to tidyee
+  modis_ndvi_tidy <- as_tidyee(modis_ndvi)
+  
+  monthly_baseline <- modis_ndvi_tidy |> 
+    filter(year %in% baseline_years) |>
+    group_by(month) |> 
+    summarise(stat=list("mean","sd","median","min","max"))
+  
+  # mean composite
+  ndvi_recent_monthly <- modis_ndvi_tidy |> 
+    filter(year %in% yoi) |>
+    group_by(year,month) |> 
+    summarise(
+      stat="mean"
+    )
+  
+  ndvi_recent_renamed <- ndvi_recent_monthly |> 
+    select(NDVI="NDVI_mean")
+  
+  ndvi_recent_and_baseline<- inner_join(x = ndvi_recent_renamed,
+                                        y = monthly_baseline,
+                                        by = "month")
+  
+  
+  ndvi_recent_baseline_imageCol <- ndvi_recent_and_baseline |> 
+    as_ee()
+  
+  ndvi_zscore<- ndvi_recent_baseline_imageCol$map(
+    function(img){
+      zscore<- img$expression(
+        "float((NDVI-NDVI_mean)/(NDVI_stdDev))",
+        opt_map= list(NDVI= img$select("NDVI"),
+                      NDVI_mean= img$select("NDVI_mean"),
+                      NDVI_stdDev= img$select("NDVI_stdDev")
+        )
+      )$rename("NDVI_z_score")
+      img$select("NDVI","NDVI_mean","NDVI_median","NDVI_min","NDVI_max")$addBands(zscore)
+    }
+    
+  ) 
+  ndvi_pct_median<- ndvi_zscore$map(
+    function(img){
+      NDVI_pct_median<- img$expression(
+        "float((NDVI)/(NDVI_median))",
+        opt_map= list(NDVI= img$select("NDVI"),
+                      NDVI_median= img$select("NDVI_median")
+                      
+        )
+      )$rename("NDVI_pct_median")
+      img$select("NDVI","NDVI_min","NDVI_max","NDVI_z_score")$addBands(NDVI_pct_median)
+    }
+    
+  ) 
+  
+  vci<- ndvi_pct_median$map(
+    function(img){
+      vci<- img$expression(
+        "float((NDVI-NDVI_min)/(NDVI_max-NDVI_min))",
+        opt_map= list(NDVI= img$select("NDVI"),
+                      NDVI_min= img$select("NDVI_min"),
+                      NDVI_max= img$select("NDVI_max")
+        )
+      )$rename("VCI")
+      img$select("NDVI","NDVI_pct_median","NDVI_z_score")$addBands(vci)
+    }
+    
+  ) 
+  
+  
+  ndvi_indicators <- as_tidyee(vci)
+  
+  ndvi_indicators_pre_processed <- ndvi_indicators |>
+    # filter(year>=2021) |>
+    select(
+      "NDVI_z_score",
+      "NDVI_pct_median",
+      "VCI"
+    )
+  
+}
+
+
+```
+
+
+
+
+
 
 Pivot each indicator into it's own column
 ```{r}

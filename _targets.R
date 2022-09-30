@@ -7,6 +7,7 @@
 library(targets)
 library(rgee)
 library(rlang)
+# test gh
 
 rgee::ee_Initialize(drive=T)
 
@@ -573,6 +574,114 @@ tar_target(
 tar_target(
   name = ner_rs_indicators_wide,
   command= format_rs_indicators_wide(ner_rs_indicators_long)
+),
+# HTI  -----------------------------------------------------------------
+tar_target(
+  name = hti_pt_data_clean,
+  command = load_clean_assessement_points(country_code = "hti")
+  #   format = "feather" # efficient storage of large data frames # nolint
+),
+tar_target(
+  name=hti_oxford_access,
+  command= extract_oxford_access_indicators(geom_sf = hti_pt_data_clean,img_scale = 928)
+),
+tar_target(
+  name= hti_landforms,
+  command = extract_geomorph_landform_indicators(hti_pt_data_clean ,img_scale=90)
+  ),
+
+tar_target(
+  name= hti_landforms_reclassified,
+  command= recode_srtm_alos_categorical(df = hti_landforms)
+),
+tar_target(
+  name= hti_chirps_rainfall_intensity,
+  command= extract_chirps_rain_intensity(geom_sf=hti_pt_data_clean,from_when="2022-05-31")
+),
+tar_target(
+  name= hti_chirps_rainfall_intensity_prepped,
+  command= prep_rs_chirps_intensity_target(hti_chirps_rainfall_intensity,moi=5)
+),
+tar_target(
+  name= hti_chirps_spi,
+  command= extract_spi_to_values(geom_sf=hti_pt_data_clean,mo_lags= list(1,3,6,9,12),moi=5)
+),
+
+tar_target(
+  name= hti_npp,
+  command= extract_npp_indicators(geom_sf = hti_pt_data_clean ,
+                                  img_scale = 500)
+),
+
+tar_target(
+  name= hti_air_quality,
+  command= extract_s5p_air_quality(geom_sf = hti_pt_data_clean ,yoi=2022, moi=5, img_scale=111320)
+),
+tar_target(
+  name= hti_dist_to_coast,
+  command= extract_dist_to_coast(geom_sf=hti_pt_data_clean ,country_code = "som",pt_density = 100)
+),
+tar_target(
+  name = hti_mo345_veg_basea  ,
+  command = extract_monthly_modis_drought(geom_sf=hti_pt_data_clean ,
+                                          baseline_years = c(2000:2015),
+                                          moi = c(3, 4, 5),
+                                          yoi = c(2022),
+                                          scale = 250,
+                                          mask = "cloud&quality",
+                                          satellite = "terra",
+                                          TAC = T,
+                                          temporal_interpolation = T)
+),
+tar_target(
+  name= hti_mo345_veg_basea_prepped,
+  command = prep_rs_modis_target(hti_mo345_veg_basea)
+),
+tar_target(
+  name=hti_closest_water_pixel_perm_prepped,
+  command = extract_nearest_water_pixel_distance(y = hti_pt_data_clean,                                                 water_type = "permanent",scale = 30, via="drive")
+),
+tar_target(
+  name = hti_landcover,
+  command= extract_landcover_class(geom_sf = hti_pt_data_clean,landcover = list("esa","esri"))
+),
+# tar_target(
+#   name = hti_growing_season_mean_ndvi_z,
+#   command = extract_ndvi_anomay(start_date, end_date, baseline,stat)
+# # should be sometheing inside chirps_spi/rolling_statistic
+# # ),
+#
+
+#
+#
+# tar_target(name= hti_local_value,
+#            command=extract_local_values_to_points(schema = "public",country_code="hti",
+#                                                   geom_sf = hti_pt_data_clean)
+# ),
+# tar_target(
+#    name= hti_local_value_merged,
+#    command= merge_local_layers(hti_local_value)
+# ),
+tar_target(
+  name = hti_rs_indicators_long,
+  command= format_rs_indicators_long(country_code= "hti",
+                                     hti_pt_data_clean,
+                                     hti_chirps_rainfall_intensity_prepped,
+                                     hti_mo345_veg_basea_prepped,
+                                     hti_closest_water_pixel_perm_prepped,
+                                     hti_chirps_spi,
+                                     hti_dist_to_coast,
+                                     hti_landforms_reclassified,
+                                     hti_oxford_access,
+                                     hti_npp,
+                                     hti_air_quality,
+                                     hti_landcover
+                                     # hti_local_value_merged
+  )
+),
+tar_target(
+  name = hti_rs_indicators_wide,
+  command= format_rs_indicators_wide(hti_rs_indicators_long)
 )
 
 

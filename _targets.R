@@ -7,6 +7,7 @@
 library(targets)
 library(rgee)
 library(rlang)
+library(dplyr)
 # test gh
 
 rgee::ee_Initialize(drive=T)
@@ -26,7 +27,7 @@ tar_option_set(
                "sf"
                ),
   # imports = "surveyGEER",
-  envir = getNamespace("surveyGEER"),
+  # envir = getNamespace("surveyGEER"),
   # packages that your targets need to run
   format = "rds" # default storage format
   # Set other options as needed.
@@ -51,8 +52,7 @@ list(
 
   tar_target(
     name = col_pt_data_clean,
-    command = load_clean_assessement_points(country_code = "col")
-    #   format = "feather" # efficient storage of large data frames # nolint
+    command = load_clean_col_assessement_points(country_code = "col")
   ),
   tar_target(
     name=col_oxford_access,

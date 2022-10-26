@@ -1,8 +1,8 @@
 name|type|data|command|depend|seed|path|time|size|bytes|format|repository|iteration|parent|children|seconds|warnings|error
 .__NAMESPACE__.|object|979bd5aed62d79d6|||||||||||||||
-.__S3MethodsTable__.|object|77371dd2add536cf|||||||||||||||
+.__S3MethodsTable__.|object|2ef3b2987f1f394b|||||||||||||||
 .packageName|object|a8676bf6bc991702|||||||||||||||
-.Random.seed|object|3bc069ab0a32bdec|||||||||||||||
+.Random.seed|object|29fcd425b9ace671|||||||||||||||
 accumulate_img_bands_to_list|function|1184bdb9535298fc|||||||||||||||
 addNDVI|function|6f2d79b2a594d22e|||||||||||||||
 addNDWI|function|87b64978a6d8b0cd|||||||||||||||
@@ -22,24 +22,24 @@ cloud_mask_modis.ee.image.Image|function|96bd555e8985db66|||||||||||||||
 cloud_mask_modis.ee.imagecollection.ImageCollection|function|0a137eb7db152be7|||||||||||||||
 cloud_mask_s5p|function|e8ec19a79ad471b1|||||||||||||||
 cloud_scale_modis_ndvi|function|4231b45c6e9e0c9f|||||||||||||||
-col_air_quality|stem|88641383cd2c3b5f|7fc62b47a8fb8086|97a9b0f62306c778|-1021884307||t19226.5034753777s|815d70f5e470145d|16165|rds|local|vector|||110.22||
-col_chirps_rainfall_intensity|stem|6e88d2eb8a30bd7a|0c52b4b284763ae0|dfbdb4999b17c403|-1056832515||t19249.3205397376s|16832b0d30a0cad3|44732|rds|local|vector|||772.39||
-col_chirps_rainfall_intensity_prepped|stem|be2a9ccc84e22ac0|4cdee94ec7c3cda7|480d5a5f318bff31|-1100056255||t19222.547897108s|412be3ea2db111e2|39344|rds|local|vector|||0.16||
-col_chirps_spi|stem|03da7968326a64b2|ad64e991d5a4939c|fd65b7c15648c072|1030244653||t19249.5134895185s|4aaa71eb7d0055ad|60214|rds|local|vector|||828.76||
-col_dist_to_coast|stem|bf3e2cbeb64f48f5|6b3fad85f7f797c5|596594261cf21d03|2026842808||t19261.4562494577s|f940ee0ac5d978ae|47723|rds|local|vector|||1031.16|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
-col_landforms|stem|15c18755500a4928|1b83b3b8a0d4c912|fb2bc05edf417ea4|-1404988018||t19226.5306507674s|27ee79f45c3f0644|18830|rds|local|vector|||72.42||
-col_landforms_reclassified|stem|3b6ee9af6423ad39|5c3fef8360a15cc5|09ad01c419a0a68b|-736870573||t19198.5806589429s|451125042804a55b|21138|rds|local|vector|||0.02||
+col_air_quality|stem|01e3c6581d5e785c|7fc62b47a8fb8086|1a828d3f51e72471|-1021884307||t19290.7344135245s|aaf78cc5f4a3b14a|17619|rds|local|vector|||158.68||
+col_chirps_rainfall_intensity|stem|4eeeaa0069c48a23|0c52b4b284763ae0|2a18f5e6cd4f1597|-1056832515||t19290.7163335585s|ca02e1ab5d25a591|43753|rds|local|vector|||886.98||
+col_chirps_rainfall_intensity_prepped|stem|225ceb4352caa100|4cdee94ec7c3cda7|9c847bff93210e52|-1100056255||t19290.7365751359s|26e8a2dcf4183f38|37679|rds|local|vector|||0.15||
+col_chirps_spi|stem|dfb65b7689e5eb7d|ad64e991d5a4939c|613af006b7b133d6|1030244653||t19290.7294031702s|af3bea06682b9ec7|70184|rds|local|vector|||766.39||
+col_dist_to_coast|stem|e44dcd76b897ad28|6b3fad85f7f797c5|ffa4c695b908b7a4|2026842808||t19290.7365691849s|a464d2f3339bd8a9|56169|rds|local|vector|||186.22|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
+col_landforms|stem|7c7f03cfb32dc550|1b83b3b8a0d4c912|6dbb43fdbe96dd3e|-1404988018||t19290.7325765468s|7ad0fe7fa6707065|39167|rds|local|vector|||80.63||
+col_landforms_reclassified|stem|16d97b13820d5a83|5c3fef8360a15cc5|db0238275542fb6c|-736870573||t19290.7365791252s|52e27e4d56ae3aa1|41815|rds|local|vector|||0.03||
 col_local_layer_lookup|function|ef0bb6fe179ff930|||||||||||||||
-col_local_value|stem|45a3ff561284aaad|8e889d9bf04d6b8c|7a63c5f5469a631d|1191230044||t19261.4443137163s|6f01349307277939|453878|rds|local|vector|||440.44||
-col_local_value_merged|stem|2e4501a052a05a65|2aa03a40a0b09f62|820abf82cff185d5|-1106819940||t19226.5338422056s|499ae0f9bdfb7b9e|96446|rds|local|vector|||0.05||
-col_npp|stem|6abd48e9fcf5bb38|69f8b9ec6f0d896e|ad6fa8a1179f681c|1726204278||t19260.4357925558s|d7f48b06f1cb41a0|46705|rds|local|vector|||94.43||
+col_local_value|stem|ecec05b1e14a3c14|8e889d9bf04d6b8c|9864f65f0dd1df2b|1191230044||t19290.7060668831s|db75daf9d4045ddf|491906|rds|local|vector|||380.67||
+col_local_value_merged|stem|beab5d4e53e1940c|2aa03a40a0b09f62|65650290153ed5ec|-1106819940||t19290.7365729321s|6f02a1bf1db3cf51|90629|rds|local|vector|||0.03||
+col_npp|stem|a723a60be8f197c2|69f8b9ec6f0d896e|63baeea1432e2eb9|1726204278||t19290.7306663669s|16ba8621b4df45a1|54930|rds|local|vector|||109.11||
 col_overview_hex_map|stem|2d5580216a3037cc|5fdf8ea100519ac8|d47fce97f08931c7|292701757||t19220.6284509597s|fcaad788e72ecfe1|5962|rds|local|vector|||0.59||
-col_oxford_access|stem|f53cefe2c241b505|c0010e22f347b20f|ea196f45839c180c|671067342||t19226.5188151456s|8259fd27cce3b84a|35998|rds|local|vector|||77.12||
-col_prev_3mo_drought_modis_basea|stem|cc279408b1cf1040|16df5b328590d93a|e3b8df8815462327|657044351||t19249.3237401723s|b3c6a25b9d8cf06a|205051|rds|local|vector|||276.46||
-col_prev_3mo_drought_modis_basea_prepped|stem|77e2a719c7f19b80|03f7cf993f9ecec3|aa90cd3ef6badd9a|899147935||t19226.824625983s|8a12d3be47829f1a|203371|rds|local|vector|||0.32||
-col_pt_data_clean|stem|a60700c41ace4fc3|9ce5370109cb7adc|567d02ecbbe8e1bf|-1637231181||t19261.3804841853s|ccc1a4f695e3cc4f|87221|rds|local|vector|||9.62||
-col_rs_indicators_long|stem|6956be2dd11b005c|77da3d6dae724342|2cfcbab7d0da3b70|-1352570496||t19235.3351509178s|5bfbe405993a770b|755070|rds|local|vector|||1.33||
-col_rs_indicators_wide|stem|9730878da73e2a4b|5c72778744bb7169|63070bf775f7b074|-1474989625||t19227.4720535793s|08016f2c04633207|511233|rds|local|vector|||0.22||
+col_oxford_access|stem|46d973fde8c344e5|c0010e22f347b20f|d0fd5fe67c17ca8e|671067342||t19290.7316429663s|42b97c389fee1267|54858|rds|local|vector|||84.34||
+col_prev_3mo_drought_modis_basea|stem|e7336038972f5cbc|16df5b328590d93a|76ed64dc5cc64cb0|657044351||t19290.72053246s|ae86641fee1a8aa9|187047|rds|local|vector|||362.7||
+col_prev_3mo_drought_modis_basea_prepped|stem|8284ba75874ffe27|03f7cf993f9ecec3|5a25b32e98035898|899147935||t19290.7365781479s|daab865062455719|185979|rds|local|vector|||0.13||
+col_pt_data_clean|stem|ab7c6a12fbfc3401|04cc3cf0947b8c2f|279b4366b1c5297b|-1637231181||t19290.7016580715s|5285d472b06d3974|100508|rds|local|vector|||12.95|package tidyverse was built under R version 4.1.3. package ggplot2 was built under R version 4.1.3. package stringr was built under R version 4.1.3|
+col_rs_indicators_long|stem|f3771f504cf206d2|77da3d6dae724342|7ae6b373d22eb4ec|-1352570496||t19290.7366020459s|eb966cc5eb52fcb0|616555|rds|local|vector|||1.63||
+col_rs_indicators_wide|stem|66d75df1227fc463|5c72778744bb7169|de9f350a27f9da41|-1474989625||t19290.7366068366s|01b3499a83f2b314|490516|rds|local|vector|||0.27||
 combine_oxford_access_imgs|function|4fbb7a25a5862a09|||||||||||||||
 compile_clean_rs_categoricals|function|fc7654007fa6b47b|||||||||||||||
 compile_clean_rs_numerics|function|b97828ba2a5bbb2d|||||||||||||||
@@ -63,14 +63,14 @@ ee_max_rolling_sum|function|0797604cb426b0dd|||||||||||||||
 ee_rolling_statistic|function|8d93b09e07f1d185|||||||||||||||
 ee_rolling_statistic2|function|feaf64721f4c3ff8|||||||||||||||
 ee_spi|function|8430fdede3d08d60|||||||||||||||
-epsg_lookup|function|0b61935fff6a659f|||||||||||||||
+epsg_lookup|function|66dc0241e3fba1f5|||||||||||||||
 etmToOli|function|676d1dd1b7618b6d|||||||||||||||
 extract_chirps_rain_intensity|function|67c9a064a249adad|||||||||||||||
-extract_dist_to_coast|function|ad24c179f2cdd4f6|||||||||||||||
+extract_dist_to_coast|function|a82665e2f20ccc9d|||||||||||||||
 extract_geomorph_landform_indicators|function|9fdce595b577e43e|||||||||||||||
 extract_growing_season_length_viirs|function|aed874fad30a6b2f|||||||||||||||
 extract_landcover_class|function|74091dcb47ce393e|||||||||||||||
-extract_local_values_to_points|function|88b51850d25c1e5a|||||||||||||||
+extract_local_values_to_points|function|35bf15eb3bb88d97|||||||||||||||
 extract_main_continent_poly|function|a7e7de8e34f007dc|||||||||||||||
 extract_modis_ndvi_anomaly|function|dfed658ce0c9ec35|||||||||||||||
 extract_monthly_modis_drought|function|583ae952f1057fc7|||||||||||||||
@@ -81,6 +81,7 @@ extract_oxford_access_indicators|function|c09f222bea3a4633|||||||||||||||
 extract_s5p_air_quality|function|1bac14222003bc13|||||||||||||||
 extract_spi_to_values|function|bc3536e6dd7e177c|||||||||||||||
 extractQABits|function|7964ebc0a7b92f7d|||||||||||||||
+fetch_col_msna|function|2421975a82755060|||||||||||||||
 fetch_msna|function|76a0f646549fe0a6|||||||||||||||
 fmask|function|13c3df35a98f1d95|||||||||||||||
 format_rs_indicators_long|function|26a63e1ad894c142|||||||||||||||
@@ -93,6 +94,22 @@ get_modis_link|function|bf597dcfc35c555d|||||||||||||||
 get_npp_indicators|function|8671c52dc4c0939a|||||||||||||||
 get_oxford_access_indicators|function|cda08389bb9fa971|||||||||||||||
 get_roll_dates|function|36f01f52b0668256|||||||||||||||
+hti_air_quality|stem|98dfdc51c2f6b62a|e1e8dc8e6afd0345|31b093773638a03e|-1552540659||t19263.2906524675s|d77a552a971e5998|22750|rds|local|vector|||103.64||
+hti_chirps_rainfall_intensity|stem|e0f4dd4b79a02b15|689874fe7b92a97d|e5c661b18bba6b5c|-1677910065||t19263.2894522386s|e5df565991e95102|39060|rds|local|vector|||692.81||
+hti_chirps_rainfall_intensity_prepped|stem|6f9d8b40ff34dd17|3d07fa77eaa68500|9d0907feb36e61ed|-1081547310||t19263.293391148s|6deb41e488e8fe21|35393|rds|local|vector|||0.1||
+hti_chirps_spi|stem|87d8b1042e366b1c|36d54c5387947ff1|88eb1463a972ea55|1010570433||t19263.2814329902s|8c62c6c4963bcf37|49218|rds|local|vector|||1347.56||
+hti_closest_water_pixel_perm_prepped|stem|36eed5c2825a0fc8|9c519009f62c652f|1e7ecaa4494ccb5d|1326395373||t19263.2629583028s|f17645a053049b45|29103|rds|local|vector|||99.31||
+hti_dist_to_coast|stem|a91e663c23000faf|dac5d2e083af8502|e2a881d735e58e91|1800638640||t19263.2637106589s|84945b6f176e9d69|28779|rds|local|vector|||64.99|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
+hti_landcover|stem|783c258c341416d0|4378dec95cec1331|aa4db9c4a5de745e|1242057609||t19263.292024599s|b8a4c5a7f580cab3|9224|rds|local|vector|||118.52||
+hti_landforms|stem|cac73d36f19b20f4|17b219c40e2d5165|2f44cce0f57cfd6a|-1477718754||t19263.2618084441s|4484376cd8756bf5|11176|rds|local|vector|||42.24||
+hti_landforms_reclassified|stem|feea2a0277888bd4|7941aab1bcd70642|26ee45a20e095364|-371662204||t19263.2933879445s|979021795e4823f1|12520|rds|local|vector|||0||
+hti_mo345_veg_basea|stem|65372fbaf9b7b514|4d70fc33abbe1152|8b8382f2b57a5197|1120021635||t19263.265833845s|82173da6b5373431|150169|rds|local|vector|||183.35||
+hti_mo345_veg_basea_prepped|stem|3e78ad2dc2cd946e|7778e535177cbc33|0b673dfe0556bec5|-471666327||t19263.2933895266s|ebd4eabc63d37b79|149516|rds|local|vector|||0.08||
+hti_npp|stem|a0d6a0a2439b04fb|1e75b68b21967eaf|3dca2cf08c0e2b52|179715569||t19263.2933852038s|5964fa803a4ab97a|91656|rds|local|vector|||69.42||
+hti_oxford_access|stem|c6f2e2ea1b8b7a54|38f9e74b3d8c63ac|3d44f5a8b1122ce8|-1633525332||t19263.2925810815s|bf3f414eb1232465|28391|rds|local|vector|||48.05||
+hti_pt_data_clean|stem|26053dcb274db0c5|d7c06d26e9dee863|99669fe435f9c0ea|-786420428||t19263.2613160306s|75530f03242cb33a|51773|rds|local|vector|||2.59|package stringr was built under R version 4.1.3|
+hti_rs_indicators_long|stem|80b45c5c2e845b72|ed7a4d669b68eb47|33ac341ef84b72e5|-690389218||t19263.2934106074s|61f6b3035173c71d|593651|rds|local|vector|||1.36||
+hti_rs_indicators_wide|stem|2c0d4a20fa34852a|751b28ee654f9f5b|c49c7cf90cd7e250|1435810280||t19263.2934143158s|5db0eefa3853bd5b|403456|rds|local|vector|||0.19||
 interpolate_ic|function|be01285b5306ff13|||||||||||||||
 interpolateImages|function|4da0da5ca7e327e1|||||||||||||||
 irq_air_quality|stem|56831f69961f644a|a9ea55b3e14df9bb|fc6750adb40e4bf8|1654448359||t19228.4454647183s|27b6dccf9783e163|167086|rds|local|vector|||219.62||
@@ -101,7 +118,7 @@ irq_chirps_rainfall_intensity_prepped|stem|350c7f8ff7611c67|ab67aeb1afe492c5|1a0
 irq_chirps_spi|stem|3b608131bcbb6d4d|1b880fa13ac71fe9|ca1322421e464bcf|785746422||t19249.5038964799s|f63c34c801da0032|223235|rds|local|vector|||885.35||
 irq_closest_water_pixel_perm|stem|a8bbae1cfabbbc6d|87111ac1d438dc20|d63c7ec68aa7d41d|745979330||t19233.3086789895s|92fde79ef979db7d|228264|rds|local|vector|||333.29||
 irq_closest_water_pixel_perm_prepped|stem|c1fce867817a08fa|87111ac1d438dc20|b60fed7101df3bc4|-1440203138||t19234.5194890955s|0eb75cb22bbdb875|123951|rds|local|vector|||360.09||
-irq_dist_to_coast|stem|03dd31ee6fca9e27|d90bc2e3f5b52853|50de0200026f6317|-493698012||t19261.4352613442s|8bdefa307aa59bd2|125178|rds|local|vector|||1134.69|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
+irq_dist_to_coast|stem|03dd31ee6fca9e27|d90bc2e3f5b52853|d0f6943b06af17ca|-493698012||t19262.3319628146s|8bdefa307aa59bd2|125178|rds|local|vector|||1139.98|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
 irq_landcover|stem|61110bacb2fc7f56|4755de99967ea582|c04d7e9799285e34|923899000||t19242.2109953324s|12512524c544f8b8|37940|rds|local|vector|||483.52||
 irq_landforms|stem|cb43dd1a3cfe2992|a8c7230b8276e1e6|48b95ec6cd0fe24f|-2146960946||t19228.3985042405s|d1ab39e0be1ca9f8|85317|rds|local|vector|||186.51||
 irq_landforms_reclassified|stem|3c19a10bf3da4165|1f9035fd67f52c97|5e438a1bb44c4f86|-1053792112||t19228.4225828814s|deb05d0a5eec2398|91423|rds|local|vector|||0.04||
@@ -109,18 +126,19 @@ irq_mo345_veg_basea|stem|4094c81231ed0b13|11a45ab38934c45d|32e7de8a3f8529c4|-422
 irq_mo345_veg_basea_prepped|stem|381aaa0095a8dbef|1e2232145acce6c7|0b0e30ceb15eb935|1073027242||t19228.4225937482s|dfd7ddc1ccddead3|647616|rds|local|vector|||0.72||
 irq_npp|stem|1b45ba94b8394102|837f84b02f34646a|b03559e43a6bf822|-351773087||t19260.4346989177s|4b365c808e12e0fe|220187|rds|local|vector|||285.2|no nonmissing arguments to min returning Inf. no nonmissing arguments to min returning Inf. no nonmissing arguments to max returning Inf. no nonmissing arguments to max returning Inf|
 irq_oxford_access|stem|1505b2ef2138569c|0c849d657c37bea6|0032c9502dfcc027|-2145916396||t19228.410129336s|472f0a88a71d5ce0|149633|rds|local|vector|||145.2||
-irq_pt_data_clean|stem|8b9f5b99b1581ad0|42c3e834203200b0|567d02ecbbe8e1bf|-18757660||t19261.3804942631s|d89e9ec9a7d161cb|253905|rds|local|vector|||0.78||
+irq_pt_data_clean|stem|8b9f5b99b1581ad0|42c3e834203200b0|99669fe435f9c0ea|-18757660||t19262.3098828628s|d89e9ec9a7d161cb|253905|rds|local|vector|||2.39|package stringr was built under R version 4.1.3|
 irq_rs_indicators_long|stem|98d7d13036d8cd4e|755402b6bc479a81|7cc1ff6c6aae9c50|-262914928||t19261.2207495069s|af6d66012c070da3|2422253|rds|local|vector|||3.01||
 irq_rs_indicators_wide|stem|235862ce7a4aeb97|19d0ee6eedc552d2|f2efe21e033e1b0b|-1532429006||t19235.3351591371s|3a17127dbe40cf0b|1463357|rds|local|vector|||0.51||
 is_dat_directory_set|function|9917cced7280950f|||||||||||||||
 is_geo_data_set|function|81e133cc9ad9fea2|||||||||||||||
-join_col_pts_to_local_layers|function|aa60aff61fa66041|||||||||||||||
-load_aoi_grid|function|00964c178e18b924|||||||||||||||
-load_clean_assessement_points|function|0edfa4859345271d|||||||||||||||
+join_col_pts_to_local_layers|function|7a19784eb6322119|||||||||||||||
+load_aoi_grid|function|28b8f059cc96ef2f|||||||||||||||
+load_clean_assessement_points|function|6f31753e6e1ac92a|||||||||||||||
+load_clean_col_assessement_points|function|1f8c815c8573500e|||||||||||||||
 load_colombia_local_layers|function|d409010e3635e7be|||||||||||||||
 load_nga_local_layers|function|d565e278b282be4e|||||||||||||||
 load_som_local_layers|function|600c3d571de67f41|||||||||||||||
-make_overview_hex_map|function|808584a0b84ad5e3|||||||||||||||
+make_overview_hex_map|function|cf1c6b134ac605ea|||||||||||||||
 median_survey_date|function|7ceae9a000ca8061|||||||||||||||
 merge_indicators|function|4adb6e48d0737ba3|||||||||||||||
 merge_indicators2|function|f30e8cc78c2f89c8|||||||||||||||
@@ -131,14 +149,14 @@ ner_chirps_rainfall_intensity|stem|bf215a5f35d9409b|841bbba207cc50f8|73a57ba0321
 ner_chirps_rainfall_intensity_prepped|stem|9d077988be615263|352acfe07386e400|a200fed682d99c21|-897045009||t19261.5158688688s|d6d7f8235c31843f|71256|rds|local|vector|||0.31||
 ner_chirps_spi|stem|a7be3134bfe862e2|6236f19961f6dcee|5e5e4d4fa1fe3a51|534146454||t19261.4854015959s|7316c691bc7d53b1|167606|rds|local|vector|||819.42||
 ner_closest_water_pixel_perm_prepped|stem|3e727669018bfef7|8acc12f459a23075|1b2f9096f91d77b0|-1100279721||t19261.4868066888s|013ab7ee932a3b93|84447|rds|local|vector|||121.34||
-ner_dist_to_coast|stem|14282f8940eb65e8|41b108399c7bd644|b8bd4305b26cbeaa|1099310326||t19261.4912671135s|3ed2d0407eb94e0a|87055|rds|local|vector|||385.34|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
+ner_dist_to_coast|stem|14282f8940eb65e8|41b108399c7bd644|00ca4df0bde08a08|1099310326||t19262.3415947355s|3ed2d0407eb94e0a|87055|rds|local|vector|||289.93|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
 ner_landcover|stem|89241dc671a63bd7|f67632e12d1a5283|892f302fa6338a62|1533566481||t19261.4971622383s|ed5498c1d4b4a50d|28942|rds|local|vector|||509.3||
 ner_landforms|stem|bc74751b8c8d3709|844db0c4a98ff273|e325616f08134768|1022840342||t19261.5106784737s|09729518d540818d|59305|rds|local|vector|||137.3||
 ner_landforms_reclassified|stem|e826ef23bc44edda|22144fc6150dc1e2|d5d2274eabb90eb0|-392525395||t19261.5158698184s|7bd1aeab8e759519|62834|rds|local|vector|||0.01||
 ner_mo345_veg_basea|stem|43ebce726b17f714|a8b5213248bd8cc9|1c9bff4e73033bb5|-1669717051||t19261.5158629264s|65bfa8d1ad3675f0|401807|rds|local|vector|||447.7||
 ner_mo345_veg_basea_prepped|stem|4adc3749c11a19c3|02f6407ce5ddb369|27f5bc9b2c129bf1|731185200||t19261.515875286s|caf486b9a69114ae|398757|rds|local|vector|||0.29||
 ner_oxford_access|stem|92a68749096f6fc8|babea473b151af86|0ca29358ecf2ee86|-1889242178||t19261.4986942404s|4f3465db0a3da242|107444|rds|local|vector|||132.25||
-ner_pt_data_clean|stem|f1d8da9475216221|cbe7b237b2f7a568|193036f25bbd8be5|1309126514||t19261.473925289s|57e74a90f287b15c|165252|rds|local|vector|||2.07|package stringr was built under R version 4.1.3|
+ner_pt_data_clean|stem|f1d8da9475216221|cbe7b237b2f7a568|7150307cae49b9d4|1309126514||t19262.3100166514s|57e74a90f287b15c|165252|rds|local|vector|||0.61||
 ner_rs_indicators_long|stem|8f8b6d0258755f6f|de72107f5caea830|56e8160330cba533|-1738799379||t19261.5159098465s|a3460d9351397027|1233657|rds|local|vector|||2.38||
 ner_rs_indicators_wide|stem|cfd2e0cb18c69ead|5eb945d46a1b5795|5b9d43c524bc70f1|178924449||t19261.5159213526s|f8ad7e7a35af27b6|901916|rds|local|vector|||0.78||
 nga_air_quality|stem|fb9424522ddab9db|28ead001b0199b2e|00cfae36fa2d05e5|2092047486||t19226.5021984629s|5e07743ec7963566|96786|rds|local|vector|||131.44||
@@ -148,25 +166,25 @@ nga_chirps_spi|stem|50e1b871a12f9b25|f6f45849eb88ef03|32639a0843d3f9ed|461969319
 nga_growing_season_lengths|stem|dfec985c63cd2a1c|dc67f17c80aa22a5|9ee0061815f51eea|-432334136||t19237.3251924178s|3555e6b4f1034e32|115742|rds|local|vector|||213.83||
 nga_landforms|stem|735cb13da4e9aa79|740948969a3cb7de|e7bd155e48ff73b2|7431137||t19226.5164222858s|50d20cd843b8e2fc|54147|rds|local|vector|||95.41||
 nga_landforms_reclassified|stem|f748a350183fe832|af002724fe80764b|f11a17eee0b451f6|583042310||t19226.5338402707s|8f23142871a6a08c|57363|rds|local|vector|||0.01||
-nga_local_value|stem|a86293b1aa3e818b|6eb6771fb75f93a2|1bace271e990b9ac|931833153||t19261.4562758778s|0866c27a94acff41|174910|rds|local|vector|||1.79||
+nga_local_value|stem|a86293b1aa3e818b|6eb6771fb75f93a2|ea7a32e3258d5469|931833153||t19262.33823781s|0866c27a94acff41|174910|rds|local|vector|||0.89||
 nga_local_value_merged|stem|a86293b1aa3e818b|0c830f2a98d4c499|650b6931a2fb2aa6|-1004239023||t19226.5338355715s|0866c27a94acff41|174910|rds|local|vector|||0||
 nga_mo345_veg_basea|stem|c75421f780323663|6a90b49eb2215f52|e13339b8a78fd033|-548216838||t19260.6487925928s|d0b99d8ba54a3c3c|407789|rds|local|vector|||10125.95||
 nga_mo345_veg_basea_prepped|stem|b85028c082e16d54|0a58f3b1aeb40392|f8746730c919abca|-128238178||t19226.8246377499s|fc768426de86b7ef|404585|rds|local|vector|||0.63||
 nga_ndvi_growing_season_z|stem|701877c9c67ceb4e|a291427238b61c50|54f844e0cb8e73da|1324110890||t19260.529242138s|5ebea8aff00494b5|84844|rds|local|vector|||2003.2||
 nga_npp|stem|13f71e99694ff243|de9f5ea05f9bd074|a448431d7e893920|752416455||t19260.5315922219s|176c1dcb05450a14|190433|rds|local|vector|||202.97|no nonmissing arguments to min returning Inf. no nonmissing arguments to min returning Inf. no nonmissing arguments to max returning Inf. no nonmissing arguments to max returning Inf|
 nga_oxford_access|stem|d31c7fa9f1b14d8f|8db77b5ec859a7f0|93d69acb32c511d8|35967659||t19226.517921094s|9feba493c1d99a33|85677|rds|local|vector|||129.39||
-nga_pt_data_clean|stem|c3e843b893a9145f|83941d719fcf473f|567d02ecbbe8e1bf|646360712||t19261.3803601706s|bf4802b2f496af41|153539|rds|local|vector|||0.85||
+nga_pt_data_clean|stem|c3e843b893a9145f|83941d719fcf473f|99669fe435f9c0ea|646360712||t19262.310008718s|bf4802b2f496af41|153539|rds|local|vector|||0.72||
 nga_rs_indicators_long|stem|24c7f2592d900332|11259241c7616dd6|a21891b3ce149ce9|846097909||t19261.22081425s|67d6534aef8e59a9|1401850|rds|local|vector|||1.5||
 nga_rs_indicators_wide|stem|5eef9089a1b94b7a|16fe5d0da46210a4|9ce5aee8e7be2f3a|-435137340||t19261.2208302921s|1507833404d1f363|932146|rds|local|vector|||0.59||
-poly_to_points|function|f7acbd59fd488b2b|||||||||||||||
+poly_to_points|function|a0b616e6d7877fed|||||||||||||||
 prep_rs_chirps_intensity_target|function|ede559a09f68c398|||||||||||||||
 prep_rs_modis_target|function|06407cd51a24d156|||||||||||||||
 prepEtm|function|6451a6c04277725e|||||||||||||||
 prepEtm_cloud|function|061a51e39bc375b9|||||||||||||||
 prepOli|function|cd67a286cd69f80a|||||||||||||||
 quick_db_con|function|2e2d4c65b809c1b2|||||||||||||||
-reach_epsg|function|e7e9809ff148efef|||||||||||||||
-reach_reproject_utm|function|f60660f81171f745|||||||||||||||
+reach_epsg|function|ee432d56c77bc614|||||||||||||||
+reach_reproject_utm|function|929f5ae0eee9e22d|||||||||||||||
 recode_from_gee_lookup_table|function|27bddf2129f5c3ba|||||||||||||||
 recode_from_lookup|function|130c431452c15c34|||||||||||||||
 recode_srtm_alos_categorical|function|f933feb1cb2ca1d2|||||||||||||||
@@ -181,16 +199,16 @@ som_chirps_rainfall_intensity|stem|03b918a48e8dc619|ad67edc319a81bd7|a8edb779b68
 som_chirps_rainfall_intensity_prepped|stem|783c9076836c254a|c879b206da7568ad|b21f009f09cb4ddc|-1295608854||t19261.220704029s|2642b825b8f00935|117970|rds|local|vector|||0.39||
 som_chirps_spi|stem|92c51c078d8f09ca|724896c7db31d820|a52cba84f01e0066|929674898||t19249.5238345661s|f0e7d46ecd329852|233457|rds|local|vector|||893.66||
 som_closest_water_pixel_perm_prepped|stem|b3b1f8a2853db2fb|834e469d70f2e60e|0e30d9f188f686de|-776036701||t19249.3631270022s|69ac77dc461a92e5|121901|rds|local|vector|||333.01||
-som_dist_to_coast|stem|d66da79bfecb02c6|722e060ffefa81e1|9a788db607c28643|-1115980678||t19261.4392137197s|04ca89006f90b5dd|145521|rds|local|vector|||339.02|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
+som_dist_to_coast|stem|d66da79bfecb02c6|722e060ffefa81e1|3dc8b7883ac76c00|-1115980678||t19262.3459564139s|04ca89006f90b5dd|145521|rds|local|vector|||375.75|repeating attributes for all subgeometries for which they may not be constant. repeating attributes for all subgeometries for which they may not be constant|
 som_landcover|stem|d2fdfe1ae8067044|00c254a069c3d2e6|fa0f93807f4cd898|-1567722714||t19249.3705337162s|90513579f8a50690|49213|rds|local|vector|||639.88||
 som_landforms|stem|df153d9fb7059fe4|b62bf352905de016|a3a67167f17a4f8c|-1831454231||t19249.2787420425s|c4ad5fe076056f38|91070|rds|local|vector|||195.19||
 som_landforms_reclassified|stem|a27d992dd13696b3|40372f238c210c5d|c77dd08b44b374e4|48595257||t19261.2206978306s|db5f218aaec4f999|97060|rds|local|vector|||0.02||
-som_local_value|stem|c9e19283bed7fd1d|7932e97f3ee5230a|219d629cb8928382|1661475790||t19261.4352886004s|c28eb32b69a9bef7|355798|rds|local|vector|||2||
+som_local_value|stem|c9e19283bed7fd1d|7932e97f3ee5230a|63b1b08d6ea24cf4|1661475790||t19262.3416064538s|c28eb32b69a9bef7|355798|rds|local|vector|||0.86||
 som_local_value_merged|stem|c9e19283bed7fd1d|0024767e85e4b924|ace1e7176627b66a|-1682813229||t19261.3436397642s|c28eb32b69a9bef7|355798|rds|local|vector|||0||
 som_mo345_veg_basea|stem|5807f96e53199bb9|1b0482998cb67246|c63ce2da4730572d|-1812229635||t19249.3340599487s|51db33fba1799c1c|671401|rds|local|vector|||891.29||
 som_mo345_veg_basea_prepped|stem|068aeaadaacc2172|5c6d0874ff2c41cd|4e4f068073a602ef|-995914999||t19261.2206961198s|ce7c93ed4e8baa9b|666792|rds|local|vector|||0.33||
 som_oxford_access|stem|5b44eb82f188c8ef|5c42e11632b47e05|887adfeea43e7c37|821164326||t19249.2808321487s|f1b0996f70898302|156817|rds|local|vector|||180.51||
-som_pt_data_clean|stem|c8cf04599af86097|00b79bc721accc52|567d02ecbbe8e1bf|1565509044||t19261.3803723112s|13a7476c1c9a032f|268162|rds|local|vector|||0.98||
+som_pt_data_clean|stem|c8cf04599af86097|00b79bc721accc52|99669fe435f9c0ea|1565509044||t19262.3100287499s|13a7476c1c9a032f|268162|rds|local|vector|||0.97||
 som_rs_indicators_long|stem|8e30ccc96c63ddc0|4ab22cca95e8f932|3c8c8a67dadc83e7|-2109092308||t19261.3436857932s|a7ef4a93c74389df|2116065|rds|local|vector|||2.83||
 som_rs_indicators_wide|stem|2b8bfa98f0aa8070|a3bc6f40121d4e83|cf9e46475dacc939|1851430689||t19261.343698529s|81ba4780d39e872a|1471431|rds|local|vector|||0.73||
 spi_bar_plot|function|8041733d557d6d3b|||||||||||||||

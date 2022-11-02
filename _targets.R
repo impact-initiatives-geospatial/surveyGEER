@@ -139,110 +139,110 @@ list(
   ),
 
 # Nigeria -----------------------------------------------------------------
-tar_target(nga_file,
-           "data/msna/20221102_nga_coords_anonymized.rds", format = "file"
-           ),
-tar_target(
-  name = nga_pt_data_clean,
-  command = load_clean_assessement_points2(fp=nga_file,country_code = "nga")
-  #   format = "feather" # efficient storage of large data frames # nolint
-),
-tar_target(
-  name=nga_oxford_access,
-  command= extract_oxford_access_indicators(geom_sf = nga_pt_data_clean,img_scale = 928)
-),
-tar_target(
-  name= nga_landforms,
-  command = extract_geomorph_landform_indicators(nga_pt_data_clean,img_scale=90)
-),
-tar_target(
-  name= nga_landforms_reclassified,
-  command= recode_srtm_alos_categorical(df = nga_landforms)
-),
-tar_target(
-  name= nga_chirps_rainfall_intensity,
-  command= extract_chirps_rain_intensity(geom_sf=nga_pt_data_clean,from_when="2022-05-31")
-),
-tar_target(
-  name= nga_chirps_rainfall_intensity_prepped,
-  command= prep_rs_chirps_intensity_target(nga_chirps_rainfall_intensity,moi=5)
-),
-tar_target(
-  name= nga_chirps_spi,
-  command= extract_spi_to_values(geom_sf=nga_pt_data_clean,moi=5)
-),
-
-tar_target(
-  name= nga_npp,
-  command= extract_npp_indicators(geom_sf = nga_pt_data_clean,img_scale = 500)
-),
-
-tar_target(
-  name= nga_air_quality,
-  command= extract_s5p_air_quality(geom_sf = nga_pt_data_clean,yoi=2022, moi=4, img_scale=111320)
-),
-tar_target(
-  name= nga_growing_season_lengths,
-  command= extract_growing_season_length_viirs(geom_sf = nga_pt_data_clean,yoi=2013:2022,scale=500)
-),
-tar_target(
-  name = nga_mo345_veg_basea,
-  command = extract_monthly_modis_drought(geom_sf=nga_pt_data_clean,
-                                          baseline_years = c(2000:2015),
-                                          moi = c(3, 4, 5),
-                                          yoi = c(2022),
-                                          scale = 250,
-                                          mask = "cloud&quality",
-                                          satellite = "terra",
-                                          TAC = T,
-                                          temporal_interpolation = T)
-),
-tar_target(
-  name= nga_mo345_veg_basea_prepped,
-  command = prep_rs_modis_target(nga_mo345_veg_basea)
-),
+# tar_target(nga_file,
+#            "data/msna/20221102_nga_coords_anonymized.rds", format = "file"
+#            ),
 # tar_target(
-#   name = nga_growing_season_mean_ndvi_z,
-#   command = extract_ndvi_anomay(start_date, end_date, baseline,stat)
-# should be sometheing inside chirps_spi/rolling_statistic
+#   name = nga_pt_data_clean,
+#   command = load_clean_assessement_points2(fp=nga_file,country_code = "nga")
+#   #   format = "feather" # efficient storage of large data frames # nolint
 # ),
-tar_target(name= nga_ndvi_growing_season_z,
-           command=extract_modis_ndvi_anomaly(
-             geom_sf=nga_pt_data_clean,
-             baseline_years = 2000:2021,
-             date_range = c("2021-06-20", "2021-09-26"),
-             range_label = "growing_season",scale= 250
-
-           )),
-tar_target(name= nga_local_value,
-           command=extract_local_values_to_points(schema = "public",country_code="nga",
-                                                  geom_sf = nga_pt_data_clean)
-),
-
-### NGA Local ####
-
-tar_target(
-  name= nga_local_value_merged,
-  command= merge_local_layers(nga_local_value)
-),
-tar_target(
-  name = nga_rs_indicators_long,
-  command= format_rs_indicators_long(country_code= "nga",nga_pt_data_clean,
-                                     nga_chirps_rainfall_intensity_prepped,
-                                     nga_mo345_veg_basea_prepped,
-                                     nga_chirps_spi,
-                                     # nga_dist_to_coast,
-                                     nga_landforms_reclassified,
-                                     nga_oxford_access,
-                                     nga_ndvi_growing_season_z,
-                                     nga_npp,nga_air_quality,
-                                     nga_local_value_merged
-  )
-),
-tar_target(
-  name = nga_rs_indicators_wide,
-  command= format_rs_indicators_wide(nga_rs_indicators_long)
-),
+# tar_target(
+#   name=nga_oxford_access,
+#   command= extract_oxford_access_indicators(geom_sf = nga_pt_data_clean,img_scale = 928)
+# ),
+# tar_target(
+#   name= nga_landforms,
+#   command = extract_geomorph_landform_indicators(nga_pt_data_clean,img_scale=90)
+# ),
+# tar_target(
+#   name= nga_landforms_reclassified,
+#   command= recode_srtm_alos_categorical(df = nga_landforms)
+# ),
+# tar_target(
+#   name= nga_chirps_rainfall_intensity,
+#   command= extract_chirps_rain_intensity(geom_sf=nga_pt_data_clean,from_when="2022-05-31")
+# ),
+# tar_target(
+#   name= nga_chirps_rainfall_intensity_prepped,
+#   command= prep_rs_chirps_intensity_target(nga_chirps_rainfall_intensity,moi=5)
+# ),
+# tar_target(
+#   name= nga_chirps_spi,
+#   command= extract_spi_to_values(geom_sf=nga_pt_data_clean,moi=5)
+# ),
+#
+# tar_target(
+#   name= nga_npp,
+#   command= extract_npp_indicators(geom_sf = nga_pt_data_clean,img_scale = 500)
+# ),
+#
+# tar_target(
+#   name= nga_air_quality,
+#   command= extract_s5p_air_quality(geom_sf = nga_pt_data_clean,yoi=2022, moi=4, img_scale=111320)
+# ),
+# tar_target(
+#   name= nga_growing_season_lengths,
+#   command= extract_growing_season_length_viirs(geom_sf = nga_pt_data_clean,yoi=2013:2022,scale=500)
+# ),
+# tar_target(
+#   name = nga_mo345_veg_basea,
+#   command = extract_monthly_modis_drought(geom_sf=nga_pt_data_clean,
+#                                           baseline_years = c(2000:2015),
+#                                           moi = c(3, 4, 5),
+#                                           yoi = c(2022),
+#                                           scale = 250,
+#                                           mask = "cloud&quality",
+#                                           satellite = "terra",
+#                                           TAC = T,
+#                                           temporal_interpolation = T)
+# ),
+# tar_target(
+#   name= nga_mo345_veg_basea_prepped,
+#   command = prep_rs_modis_target(nga_mo345_veg_basea)
+# ),
+# # tar_target(
+# #   name = nga_growing_season_mean_ndvi_z,
+# #   command = extract_ndvi_anomay(start_date, end_date, baseline,stat)
+# # should be sometheing inside chirps_spi/rolling_statistic
+# # ),
+# tar_target(name= nga_ndvi_growing_season_z,
+#            command=extract_modis_ndvi_anomaly(
+#              geom_sf=nga_pt_data_clean,
+#              baseline_years = 2000:2021,
+#              date_range = c("2021-06-20", "2021-09-26"),
+#              range_label = "growing_season",scale= 250
+#
+#            )),
+# tar_target(name= nga_local_value,
+#            command=extract_local_values_to_points(schema = "public",country_code="nga",
+#                                                   geom_sf = nga_pt_data_clean)
+# ),
+#
+# ### NGA Local ####
+#
+# tar_target(
+#   name= nga_local_value_merged,
+#   command= merge_local_layers(nga_local_value)
+# ),
+# tar_target(
+#   name = nga_rs_indicators_long,
+#   command= format_rs_indicators_long(country_code= "nga",nga_pt_data_clean,
+#                                      nga_chirps_rainfall_intensity_prepped,
+#                                      nga_mo345_veg_basea_prepped,
+#                                      nga_chirps_spi,
+#                                      # nga_dist_to_coast,
+#                                      nga_landforms_reclassified,
+#                                      nga_oxford_access,
+#                                      nga_ndvi_growing_season_z,
+#                                      nga_npp,nga_air_quality,
+#                                      nga_local_value_merged
+#   )
+# ),
+# tar_target(
+#   name = nga_rs_indicators_wide,
+#   command= format_rs_indicators_wide(nga_rs_indicators_long)
+# ),
 # Iraq -----------------------------------------------------------------
 tar_target(
   name = irq_pt_data_clean,
@@ -685,6 +685,106 @@ tar_target(
 tar_target(
   name = hti_rs_indicators_wide,
   command= format_rs_indicators_wide(hti_rs_indicators_long)
+),
+
+# HSMV - CAR --------------------------------------------------------------
+
+
+tar_target(car_hsmv_file,
+           "data/20221019_CAR_HSMV.rds", format = "file"
+           ),
+tar_target(
+  name = car_hsmv_pt_data_clean,
+  command = load_clean_assessement_points2(fp=car_hsmv_file,country_code = "car")
+  #   format = "feather" # efficient storage of large data frames # nolint
+),
+tar_target(
+  name=car_oxford_access,
+  command= extract_oxford_access_indicators(geom_sf = car_hsmv_pt_data_clean,img_scale = 928)
+),
+tar_target(
+  name= car_landforms,
+  command = extract_geomorph_landform_indicators(car_hsmv_pt_data_clean,img_scale=90)
+),
+tar_target(
+  name= car_landforms_reclassified,
+  command= recode_srtm_alos_categorical(df = car_landforms)
+),
+tar_target(
+  name= car_chirps_rainfall_intensity,
+  command= extract_chirps_rain_intensity(geom_sf=car_hsmv_pt_data_clean,from_when="2022-05-31")
+),
+tar_target(
+  name= car_chirps_rainfall_intensity_prepped,
+  command= prep_rs_chirps_intensity_target(car_chirps_rainfall_intensity,moi=5)
+),
+tar_target(
+  name= car_chirps_spi,
+  command= extract_spi_to_values(geom_sf=car_hsmv_pt_data_clean,moi=5)
+),
+
+tar_target(
+  name= car_npp,
+  command= extract_npp_indicators(geom_sf = car_hsmv_pt_data_clean,img_scale = 500)
+),
+
+tar_target(
+  name= car_air_quality,
+  command= extract_s5p_air_quality(geom_sf = car_hsmv_pt_data_clean,yoi=2022, moi=4, img_scale=111320)
+),
+tar_target(
+  name= car_growing_season_lengths,
+  command= extract_growing_season_length_viirs(geom_sf = car_hsmv_pt_data_clean,yoi=2013:2022,scale=500)
+),
+tar_target(
+  name = car_mo345_veg_basea,
+  command = extract_monthly_modis_drought(geom_sf=car_hsmv_pt_data_clean,
+                                          baseline_years = c(2000:2015),
+                                          moi = c(3, 4, 5),
+                                          yoi = c(2022),
+                                          scale = 250,
+                                          mask = "cloud&quality",
+                                          satellite = "terra",
+                                          TAC = T,
+                                          temporal_interpolation = T)
+),
+tar_target(
+  name= car_mo345_veg_basea_prepped,
+  command = prep_rs_modis_target(car_mo345_veg_basea)
+),
+# tar_target(
+#   name = car_growing_season_mean_ndvi_z,
+#   command = extract_ndvi_anomay(start_date, end_date, baseline,stat)
+# should be sometheing inside chirps_spi/rolling_statistic
+# ),
+tar_target(name= car_ndvi_growing_season_z,
+           command=extract_modis_ndvi_anomaly(
+             geom_sf=car_hsmv_pt_data_clean,
+             baseline_years = 2000:2021,
+             date_range = c("2021-06-20", "2021-09-26"),
+             range_label = "growing_season",scale= 250
+
+           )),
+### car Local ####
+# no local recieveid
+
+tar_target(
+  name = car_rs_indicators_long,
+  command= format_rs_indicators_long(country_code= "car",car_hsmv_pt_data_clean,
+                                     car_chirps_rainfall_intensity_prepped,
+                                     car_mo345_veg_basea_prepped,
+                                     car_chirps_spi,
+                                     # car_dist_to_coast,
+                                     car_landforms_reclassified,
+                                     car_oxford_access,
+                                     car_ndvi_growing_season_z,
+                                     car_npp,car_air_quality,
+                                     car_local_value_merged
+  )
+),
+tar_target(
+  name = car_rs_indicators_wide,
+  command= format_rs_indicators_wide(car_rs_indicators_long)
 )
 
 

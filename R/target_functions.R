@@ -97,10 +97,15 @@ load_clean_assessement_points2 <-  function(fp,country_code) {
       country_code=country_code
     )
 
-  assessment <- assessment |>
-    separate(geometry, into = (c("x","y")), sep =",") |>
-    mutate(across(.cols=c("x","y"),~parse_number(.x))) |>
-    st_as_sf(coords=(c("x","y")),crs=4326)
+  if(!"sf" %in% class(assessment)){
+    # kind of specific , but also frequently needed - should just make a func
+    assessment <- assessment |>
+      separate(geometry, into = (c("x","y")), sep =",") |>
+      mutate(across(.cols=c("x","y"),~parse_number(.x))) |>
+      st_as_sf(coords=(c("x","y")),crs=4326)
+  }
+
+
   con <- DBI::dbConnect(
     RPostgres::Postgres(),
     dbname = "global_gdb",

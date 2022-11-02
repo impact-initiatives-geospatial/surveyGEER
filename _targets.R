@@ -139,9 +139,12 @@ list(
   ),
 
 # Nigeria -----------------------------------------------------------------
+tar_target(nga_file,
+           "data/msna/20221102_nga_coords_anonymized.rds", format = "file"
+           ),
 tar_target(
   name = nga_pt_data_clean,
-  command = load_clean_assessement_points(country_code = "nga")
+  command = load_clean_assessement_points2(fp=nga_file,country_code = "nga")
   #   format = "feather" # efficient storage of large data frames # nolint
 ),
 tar_target(

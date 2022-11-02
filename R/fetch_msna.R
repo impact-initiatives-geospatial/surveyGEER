@@ -41,3 +41,23 @@ fetch_col_msna <- function(country_code="col"){
       country_code=country_code
     )
 }
+
+#' Title
+#'
+#' @param country_code
+#'
+#' @return
+#' @description redundant function I had to make when COL sent new data - did not want to edit `fetch_msna` as that
+#' would caue me to have to create >90 targets ~5-10 hours... instead just make a new silly function. Probably using a method to monitor changes to input file could avoide this
+#' @export
+#'
+#' @examples
+fetch_nga_msna <- function(fp,country_code="nga"){
+  # msna_path<- here::here("data/msna")
+  # foi <- file.path(msna_path,"20220916_coords_anonymized_col.rds")
+
+  readr::read_rds(fp) |>
+    dplyr::mutate(
+      country_code=country_code
+    )
+}

@@ -1,0 +1,202 @@
+---
+title: "ma-yearly_land_phenology"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ma-yearly_land_phenology}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(tidyrgee)
+ee_Initialize()
+```
+
+# Intro
+
+In this document we will explore the  [NP22Q2 v001 VIIRS/NPP Land Surface Phenology (Land Cover Dynamics) Yearly L3 Global 500 m SIN Grid](https://lpdaac.usgs.gov/products/vnp22q2v001/) data set to understand it's potential utility in our work.
+
+By converting with `as_tidy()` from the [tidyrgee](package) we now can easily print useful information about the ImageCollection without constantly having to download from the server to client. We can see the bandnames, number  of images and some additional metadata regarding the dates.
+
+
+```{r}
+ic = ee$ImageCollection('NOAA/VIIRS/001/VNP22Q2')
+tidy_ic <-  as_tidyee(ic)
+
+tidy_ic
+```
+
+Useful information about the individual bands can quickly be accessed in the [VNP22Q2 GEE Developers Catalogue](https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_001_VNP22Q2). am particularly interested in first exploring the dates of and growing season lengths. 
+
+- I will start with Growing Season Length
+
+```{r}
+growing_season_length <- tidy_ic |> 
+  select("Growing_Season_Length")
+
+```
+
+I am going to extract this data for every point in the data set for every year. This going to take a while... I'm going to make it turn this whole process into a function so I can set it as a target so I don't accidentally loose this hard-earned object later. Okay here is a simple function - it's not very generalizeable, but should work to get the data I want as a target. I will now copy this function as a script into `R/` directory, build the package, add this to my `_targets.R` pipeline and run the code. This will take a while I suspect- I'll be back later to check-in :-)
+
+```{r}
+extract_growing_season_length_viirs <-  function(geom_sf, yoi=2013:2020,scale=500){
+  ic = ee$ImageCollection('NOAA/VIIRS/001/VNP22Q2')
+  tidy_ic <-  as_tidyee(ic)
+  
+  tidy_ic_filtered <- tidy_ic |> 
+    select("Growing_Season_Length") |> 
+    filter(year %in% yoi)
+  res <- tidy_ic_filtered |> 
+    ee_extract_tidy(y = geom_sf,stat = "median",via = "drive",sf = F,scale = scale)
+  return(res)
+}
+
+
+```
+
+Interesting to get an understanding of the distributions
+```{r}
+targets::tar_load(nga_growing_season_lengths)
+library(ggridges)
+nga_growing_season_lengths |> 
+  ggplot(aes(x=value))+
+  geom_histogram()+
+  facet_wrap(~lubridate::year(date))
+
+nga_growing_season_lengths |> 
+  ggplot(aes(x=value, y= as.factor(date)))+
+  geom_density_ridges(scale = 4) 
+  
+```
+
+Have there been locations with greater changes than others?
+
+```{r}
+lm_by_loc <- nga_growing_season_lengths |> 
+  mutate(year = lubridate::year(date)) |> 
+  group_by(new_uid) %>%
+  group_modify(~ broom::tidy(lm(value ~ year, data = .x)))
+
+
+sig_vals <- lm_by_loc |> 
+  ungroup() |> 
+  filter(term=="year") |> 
+  filter(p.value<0.05)
+```
+
+Data is pretty messy when you look at all trends
+- seems like most are positive trends 
+```{r}
+
+nga_growing_season_lengths |> 
+  filter(new_uid %in% sig_vals$new_uid) |> 
+  ggplot(aes(x=date, y= value,color=as_factor(new_uid)))+
+  geom_line(alpha=0.4)+
+  theme(
+    legend.position = "none"
+  )
+```
+
+The negative trends are fairly strong although there are only 76 out of 4000 - this could just be random, but could these locations have outlier values of other indicators as well like FCS?
+```{r}
+negative_trends <-  sig_vals |> 
+  filter(estimate<0)
+
+
+nga_growing_season_lengths |> 
+  filter(new_uid %in% negative_trends$new_uid) |> 
+  ggplot(aes(x=date, y= value,color=as_factor(new_uid)))+
+  geom_line(alpha=0.4)+
+  theme(
+    legend.position = "none"
+  )
+```
+
+
+Lets check out the spatial
+```{r}
+library(leaflet)
+
+tar_load(nga_pt_data_clean)
+test <- nga_pt_data_clean |> 
+  mutate(neg= if_else(new_uid %in% negative_trends$new_uid,"negative trend","other")) 
+test |> filter(neg=="negative trend")
+test |> filter(new_uid==1036)
+leaflet(test) |> 
+  leaflet::addProviderTiles(leaflet::providers$Esri.WorldImagery) |> 
+  leafgl::addGlPoints(data= test,fillColor = ~neg,label = ~new_uid)
+
+```
+
+# lets just look at the images
+```{r}
+years_to_map <-  2013:2020
+years_to_map <- years_to_map |> 
+  set_names(paste0(years_to_map,"_growing_season"))
+
+yearly_growing_season_maps <- years_to_map |> 
+  purrr::map2(.y =names(years_to_map),
+    ~Map$addLayer(
+      tidy_ic |>
+        select("Growing_Season_Length") |> 
+        filter(year==.x) |> 
+        as_ee(),
+      visParams= list(min=0,max=300,palette=c("red","yellow","green")),
+      name=.y
+  )
+  )
+
+geom <- nga_pt_data_clean |> sf::st_centroid() |> rgee::sf_as_ee()
+Map$centerObject(geom, 10)
+maps_growing_seasons_length <- yearly_growing_season_maps$`2013_growing_season` +
+  yearly_growing_season_maps$`2014_growing_season`+
+  yearly_growing_season_maps$`2015_growing_season`+
+  yearly_growing_season_maps$`2016_growing_season`+
+  yearly_growing_season_maps$`2017_growing_season`+
+  yearly_growing_season_maps$`2018_growing_season`+
+  yearly_growing_season_maps$`2019_growing_season`+
+  yearly_growing_season_maps$`2020_growing_season`
+
+leafgl::addGlPoints(map = maps_growing_seasons_length,
+                    data =  test,fillColor = ~neg,label=test$new_uid)
+test |> filter(new_uid==6559)
+```
+
+It looks like these very negative trends are constrained to some individual "noisy" pixels. What is going on in these pixels? should we do a focal median to smooth these out?  Or might they represent some urbanization? If so, is this useful or interesting? it's probably interesting, but also a strange way to detect urbanization.
+
+
+Zooming in on negative trend pixels and using Google Earth Pro to go back in time the noisey negative trends don't seem warranted.
+
+```{r}
+esa_ic <- ee$ImageCollection("ESA/WorldCover/v100")
+esa_img <- ee$Image(esa_ic$first())$rename("esa_lulc_10m")
+
+esa_color_table<-ee_landcover_lookup(landcover = "esa")
+google_color_table<-ee_landcover_lookup(landcover = "google")
+esa_labels = esa_color_table$category
+esa_colors <-  esa_color_table$hex
+vis_esa <- list(min=10, max=110,
+                palette=esa_colors,values= esa_labels,opacity=0.7)
+
+m_esa <-  Map$addLayer(esa_img,vis_esa,"ESA Land Cover")
+esa_legend <- Map$addLegend(vis_esa, name = "ESA Legend", color_mapping = "character")
+
+m_esa_with_leg <- m_esa+esa_legend
+Map$centerObject(geom, 10)
+# maps_growing_seasons_length+
+leafgl::addGlPoints(map = m_esa_with_leg,
+                    data =  test,
+                    fillColor = ~neg,
+                    label=test$new_uid)
+```
+
+

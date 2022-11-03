@@ -1,0 +1,353 @@
+---
+title: "ja-understanding_modis_cloud_masking"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ja-understanding_modis_cloud_masking}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(sf)
+library(tidyrgee)
+library(targets)
+devtools::load_all()
+tar_load()
+
+# create center point for map
+map_center_pt_ee <- sf_as_ee(sf::st_bbox(col_pt_data_clean) |> 
+                               sf::st_as_sfc() |> 
+                               st_centroid()
+)
+```
+
+I want to know what happens when pixels with masked values are composited.
+Therefore lets, do some modis cloud masking which will pixels
+```{r}
+modis_drought_ic <- get_modis_drought_indicators()
+modis_drought_ic_cloud <- get_modis_drought_indicators(mask = "cloud")
+modis_drought_ic_cloud_quality <- get_modis_drought_indicators(mask = "cloud&quality")
+```
+
+
+Then let's look at masked NDVI for april 2022, may 2022, and may-april 2022 composite
+- first get the images
+```{r}
+# may_modis <- modis_drought_ic |> 
+#   filter(year==2022,month==5) |> 
+#   as_ee()
+april_modis_cloud <- modis_drought_ic_cloud |> 
+  filter(year==2022, month== 4) |> 
+  as_ee()
+may_modis_cloud <- modis_drought_ic_cloud |> 
+  filter(year==2022, month== 5) |> 
+  as_ee()
+
+april_may_composite_cloud <-  modis_drought_ic_cloud |> 
+  filter(year==2022, month%in% c(4,5)) |> 
+  summarise(stat="mean")
+```
+
+- then visualize
+  + so looks like when the data is masked in 1 image, but not in the other it returns the unmasked value. This is good and as expected, but was not sure.
+
+```{r}
+
+Map$centerObject(map_center_pt_ee,zoom=7)
+m1 <- Map$addLayer(april_modis_cloud,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI"),
+             name = "april cloud masked")
+m2 <- Map$addLayer(may_modis_cloud,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI"),
+             name = "may cloud masked")
+
+m3 <- Map$addLayer(april_may_composite_cloud$ee_ob,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI_mean"),
+             name = "april-may cloud masked composite")
+
+
+m4 <- m1+m2+m3
+leafgl::addGlPoints(map=m4,data = col_pt_data_clean)
+
+# may_modis_cloud_quality <- modis_drought_ic_cloud_quality |> 
+#   filter(year==2022, month== 5) |> 
+#   as_ee()
+```
+
+## How to deal with clouds
+- by using cloud + quality mask we can reduce the size of the mask
+- however, there will still be many masked points...
+- gap filling
+  + run a focal window (kernel?) on the masked image, we should be able to take a neighborhood mean using only unmasked pixels? 
+  + use the last non-cloudy pixel.... but we shouldn't allow it to go too far back? maybe one month is acceptable
+  + The Terra and Aqua combination (TAC) method is the simplest and most transparent of the temporal methods [@li2020gap] , [@parajka2008modistac]
+  + Interpolation with regression (https://groups.google.com/g/google-earth-engine-developers/c/SLUrrjZqfDQ/m/dCT0FiyTAAAJ)
+  (https://code.earthengine.google.com/d66813de389e3733922419d342e08c83)
+  https://spatialthoughts.com/2021/11/08/temporal-interpolation-gee/#more-6094
+### try TAC method
+-i've adjuste the `get_modis_drought_indicators` to allow either satellite
+```{r}
+
+# terra
+# terra <- ee$ImageCollection("MODIS/061/MOD13Q1")
+# aqua - check check
+# aqua <- ee.ImageCollection("MODIS/061/MYD13Q1")
+terra_drought_cloud <- get_modis_drought_indicators(mask = "cloud",satellite = "terra")
+aqua_drought_cloud <- get_modis_drought_indicators(mask = "cloud",satellite = "aqua")
+
+terra_may_cloud <- terra_drought_cloud |> 
+  filter(year==2022, month== 4) |> 
+  as_ee()
+
+aqua_may_cloud <- aqua_drought_cloud |> 
+  filter(year==2022, month== 4) |> 
+  as_ee()
+
+
+# Map$centerObject(map_center_pt_ee,zoom=7)
+map_terra_may_cloud <- Map$addLayer(terra_may_cloud,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI"),
+             name = "terra may - cloud masked")
+
+map_aqua_may_cloud <- Map$addLayer(aqua_may_cloud,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI"),
+             name = "aqua may - cloud masked")
+
+map_terra_aqua_may_cloud <- map_terra_may_cloud+map_aqua_may_cloud
+leafgl::addGlPoints(map=map_terra_aqua_may_cloud,data = col_pt_data_clean)
+```
+
+- TAC is rudimentarily impleented and does increase % non-clouds
+- by taking the `mean` it fills gaps... not sure if it is always right to take the mean
+```{r}
+terra_aqua <- bind_ics(list(terra_drought_cloud,aqua_drought_cloud))
+
+terra_aqua_composite <- terra_aqua |> 
+  group_by(year,month) |> 
+  summarise(stat="mean")
+
+may_terra_aqua_composite <- terra_aqua_composite |> 
+  filter(year==2022, month==4)
+map_terra_aqua_cloud_composite_may<-  Map$addLayer(may_terra_aqua_composite$ee_ob,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI_mean"),
+             name = "terra-aqua cloud masked composite")
+
+map_terra_aqua_full <- map_terra_aqua_may_cloud+map_terra_aqua_cloud_composite_may
+leafgl::addGlPoints(map=map_terra_aqua_full,data = col_pt_data_clean)
+```
+
+
+lets try interpolation of the TAC-GAP filled IC
+```{r}
+interp_tac <- interpolate_ic(x = terra_aqua_composite$ee_ob,time_window = 40 )
+```
+
+
+
+
+now lets visualize - i changed month to 4 here and above because we can't interpolate on last month data
+
+```{r}
+interp_tac_tidy <- as_tidyee(interp_tac)
+interp_tac_may <- interp_tac_tidy |> 
+  filter(year==2022, month ==4) |> 
+  as_ee()
+
+map_with_interpolated_ndvi<-  Map$addLayer(interp_tac_may,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI_mean"),
+             name = "Interpolated terra-aqua cloud masked composite")
+another_map <-  map_terra_aqua_full+map_with_interpolated_ndvi
+leafgl::addGlPoints(map=another_map,data = col_pt_data_clean)
+```
+
+# Terra Vs Aqua....
+I want to understand how different `NDVI` values are from Terra vs Aqua satellites
+```{r}
+
+terra_aqua_ndvi_joined <- terra_drought_cloud |> 
+  select(terra_ndvi="NDVI") |> 
+  inner_join(
+    aqua_drought_cloud |> 
+      select(aqua_ndvi="NDVI")  , by ="month"
+  )
+april_terra_aqua <- terra_aqua_ndvi_joined |> 
+  filter(year==2021,month == 4)
+april_terra_aqua <- ee$Image(terra_aqua_ndvi_joined$ee_ob$first())
+
+# tar_load_everything()
+rnd_sample <- sf_as_ee(sf::st_bbox(col_pt_data_clean) |> 
+                               sf::st_as_sfc() |> 
+           st_sample(size = 1000)
+)
+
+rnd_sample_vals <- april_terra_aqua$sampleRegions(
+  collection= rnd_sample,
+  scale = 250
+)
+rnd_sample_vals_df <- ee_as_sf(rnd_sample_vals)
+rnd_sample_vals_df |> 
+  mutate(difference = terra_ndvi - aqua_ndvi) |> 
+  summarise(
+    avg_diff=mean(difference,na.rm=T)
+  )
+
+rnd_sample_vals_df |> 
+  ggplot(aes(x= terra_ndvi, y= aqua_ndvi))+
+  geom_point()
+  
+
+
+
+select_aqua_terra <- function(img){
+  aqua <- img$select("aqua_ndvi")
+  terra <- img$select("terra_ndvi")
+  ee$Image(-999)$
+    where(terra$eq(0),aqua)$
+    where(terra$neq(0),terra)
+}
+ck2 <- select_aqua_terra(april_terra_aqua)
+
+
+ck_map <- Map$addLayer(ck2$updateMask(ck2$neq(-999)),
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="constant"),
+             name = "ck")
+all_maps <- ck_map+another_map
+leafgl::addGlPoints(map=all_maps,data = col_pt_data_clean)
+
+
+ck3 <- april_terra_aqua$select("terra_ndvi")$
+  unmask(april_terra_aqua$select("aqua_ndvi"),sameFootprint=TRUE)
+ck3$bandNames()$getInfo()
+comparison_map <- Map$addLayer(
+  # ck2$updateMask(ck2$eq(-999))
+  ck3
+  ,
+             visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="terra_ndvi"
+                              # bands="constant"
+                              
+                              ),
+             name = "ck")+
+  Map$addLayer(april_terra_aqua,
+                visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="terra_ndvi"), name = "terra")+
+  Map$addLayer(april_terra_aqua,
+                visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="aqua_ndvi"), name = "aqua")
+```
+
+
+the function has been updated to include the lessons of the above experiments.
+1. cloud mask alone is too aggressive
+2. 
+```{r}
+
+# Aggressive Cloud Masking
+ndvi_cmask_tac <- get_modis_drought_indicators(mask = "cloud",
+                             satellite = "terra",
+                             TAC = T,
+                             temporal_interpolation = F)
+
+ndvi_cmask_tac_interp <- get_modis_drought_indicators(mask = "cloud",
+                             satellite = "terra",
+                             TAC = T,
+                             temporal_interpolation = T)
+
+ndvi_cmask <- get_modis_drought_indicators(mask = "cloud",
+                             satellite = "terra",
+                             TAC = F,
+                             temporal_interpolation = F)
+
+cmask_comparisons<- dplyr::lst(ndvi_cmask, ndvi_cmask_tac,ndvi_cmask_tac_interp)
+
+cmask_maps <- cmask_comparisons |> 
+  purrr::map2(.y=names(cmask_comparisons),.f = ~{
+    img_filt_ee <- .x |> 
+              filter(year==2022, month == 4) |>
+      as_ee()
+  Map$addLayer(img_filt_ee,visParams = list(min=0, max=0.7, palette=c("red","yellow","green","darkgreen"),bands="NDVI"),name=.y)
+              }
+  )
+            
+cmask_maps$ndvi_cmask+cmask_maps$ndvi_cmask_tac+cmask_maps$ndvi_cmask_tac_interp
+
+
+# Less Aggressive
+ndvi_cqmask_tac <- get_modis_drought_indicators(mask = "cloud&quality",
+                             satellite = "terra",
+                             TAC = T,
+                             temporal_interpolation = F)
+
+ndvi_cqmask_tac_interp <- get_modis_drought_indicators(mask = "cloud&quality",
+                             satellite = "terra",
+                             TAC = T,
+                             temporal_interpolation = T)
+
+ndvi_cqmask <- get_modis_drought_indicators(mask = "cloud&quality",
+                             satellite = "terra",
+                             TAC = F,
+                             temporal_interpolation = F)
+
+cqmask_comparisons<- dplyr::lst(ndvi_cqmask, ndvi_cqmask_tac,ndvi_cqmask_tac_interp)
+
+cqmask_maps <- cqmask_comparisons |> 
+  purrr::map2(.y=names(cmask_comparisons),.f = ~{
+    img_filt_ee <- .x |> 
+              filter(year==2022, month == 4) |>
+      as_ee()
+  Map$addLayer(img_filt_ee,visParams = list(min=0, max=0.7, palette=c("red","yellow","green","darkgreen"),bands="NDVI"),name=.y)
+              }
+  )
+            
+cqmask_maps$ndvi_cqmask+
+  cqmask_maps$ndvi_cqmask_tac+
+  cqmask_maps$ndvi_cqmask_tac_interp
+
+
+
+comparison_map2 <- comparison_map+
+   Map$addLayer(ndvi_cqmask_tac_interp |> filter(year==2022,month==4) |> as_ee(),
+                visParams = list(min=0,
+                              max=1,
+                              palette=c("red","yellow","green"),
+                              bands="NDVI"), name = "ndvi_cqmask_tac_interp")
+
+leafgl::addGlPoints(map=comparison_map2,data = col_pt_data_clean)
+```

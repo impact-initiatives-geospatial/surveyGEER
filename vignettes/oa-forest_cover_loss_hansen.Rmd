@@ -1,0 +1,145 @@
+---
+title: "Estimating Forest Loss with Hansen 2021 Data set"
+author: "Zack Arno"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+bibliography: references.bib
+link-citation: true
+csl: remote_sensing_journal.csl
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{oa-forest_cover_loss_hansen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup,include=F, echo=F,warnings=F,message=F,}
+library(surveyGEER)
+library(rgee,quietly)
+library(leaflet,quietly)
+library(sf,quietly)
+library(tidyverse)
+
+
+ee_Initialize()
+```
+
+## Intro
+
+This document will show you how to estimate yearly forest cover loss over an area of interest based on the Hansen Global Forest Change Data set [@hansen2013high]
+
+```{r setup_show,include=T, eval=F}
+library(surveyGEER)
+library(rgee)
+library(leaflet)
+library(sf)
+library(tidyverse)
+
+
+ee_Initialize()
+```
+
+
+## Load data
+
+- load area of interest (aoi) send aoi to ee with `rgee::sf_as_ee()`
+- load global deforestation data set
+
+```{r, message=F,warning=F}
+
+# local aoi file
+gdb <- "C:\\Users\\zack.arno\\Documents\\sccrap\\drc_aoi"
+layer_name <-  "AGORA_RDC_Limite_de_la_chefferie_Tumbwe_RGC_03112022"
+
+aoi <- sf::st_read(gdb,layer_name) |> 
+  st_transform(crs=4326)
+
+# load to ee
+aoi_ee <-  rgee::sf_as_ee(aoi |> select(NOM))
+
+# global deforestation data set
+gfc = ee$Image('UMD/hansen/global_forest_change_2021_v1_9')
+```
+
+
+## Map
+
+- quick viz based on visualization provided [here](https://developers.google.com/earth-engine/datasets/catalog/UMD_hansen_global_forest_change_2021_v1_9)
+```{r, eval=F}
+
+# set up visualization
+treeLossVisParam = list(
+  bands= c('lossyear'),
+  min= 0,
+  max= 21,
+  palette= c('yellow', 'red')
+)
+
+m1 <- leaflet() |> 
+  addProviderTiles(providers$CartoDB.DarkMatter) |> 
+  addPolygons(data=aoi,fillOpacity = 0)
+
+Map$centerObject(aoi_ee, 15)
+m1+Map$addLayer(gfc, treeLossVisParam, 'tree loss year')
+```
+
+
+```{r, eval=T,echo=FALSE, fig.align='center', out.width='100%'}
+knitr::include_graphics(here::here("man/figures/deforestation_DRC.PNG"))
+```
+
+
+## Extract each years deforestation data for AOI
+
+```{r}
+
+# set up named list to iterate through
+years_of_interest<-c(1:21) |> 
+  set_names(2001:2021)
+
+
+# iterate and produce appropriate data.frame
+
+def_2001_2021 <- years_of_interest |> 
+  purrr::map2_dfr(.y = names(years_of_interest),
+    ~{
+      def_temp <- gfc$
+        select(c("lossyear"))$
+        eq(.x)
+      
+      def_area= def_temp$
+        multiply(ee$Image$pixelArea())$
+        divide(1e6)
+      
+      def_in_geom = def_area$reduceRegion(
+        reducer=ee$Reducer$sum(),
+        geometry= aoi_ee,
+        scale=30,
+        maxPixels= 1e8
+        )
+      
+      km2_lost <- def_in_geom$getInfo()$lossyear
+      data.frame(year=.y, 
+                 km2_lost= km2_lost,
+                 hectares_lost = km2_lost*100)
+      
+    }
+  )
+
+```
+
+
+## Deforestation Results
+
+view results as table.
+```{r}
+DT::datatable(def_2001_2021 )
+```
+
+## References

@@ -1,0 +1,182 @@
+---
+title: "ha-grace_groundwater"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ha-grace_groundwater}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(tidyrgee)
+library(tidyverse)
+library(rgee)
+library(sf)
+
+ee_Initialize()
+```
+
+# Intro
+
+This is a tutorial on using GRACE and GLDAS data to explore groundwater fluctuations.
+
+
+https://grace.jpl.nasa.gov/data/get-data/jpl_global_mascons/
+
+All reported data are anomalies relative to the 2004.0-2009.999 time-mean baseline. Note that this baseline needs to be consistent when comparing GRACE/GRACE-FO data to other anomaly data (e.g., groundwater or sea level).
+
+
+I thought that there were so many images due to tiling, but it looks like there is one imgae of the entire global every 3 hours. Each image is the whole earth - therefore clipping does not reduce the #
+
+Instead we can group_by `year, month`
+
+```{r}
+con <- quick_db_con(schema = "public")
+adm1<-st_read(con,"syr_adm1")
+aoi <- adm1 |> 
+  filter(str_detect(adm1_en,"Has")) |> 
+  st_bbox() |> 
+  st_as_sfc()
+aoi_ee <-  rgee::sf_as_ee(aoi)
+
+grace_tws <-  ee$ImageCollection("NASA/GRACE/MASS_GRIDS/MASCON")
+grace_tws <- as_tidyee(grace_tws)
+gldas <- ee$ImageCollection("NASA/GLDAS/V021/NOAH/G025/T3H")
+gldas_aoi <-  gldas$filterBounds(aoi_ee)
+gldas_aoi_clip <-  gldas$map(function(img){img$clip(aoi_ee)})
+gldas_tidy <-  as_tidyee(gldas)
+Map$addLayer(gldas$
+               first()$
+               select("SoilMoi0_10cm_inst"),
+             visParams = list(min=1.99,
+                              max= 47.59, 
+                              palette=c("blue","red")),
+             "adsfdasf")
+SoilMoi0_10cm_inst
+SoilMoi0_40cm_inst
+gldas_monthly<- gldas_tidy |> 
+  select("SoilMoi0_10cm_inst"
+         # "SoilMoi10_40cm_inst",
+         # "SoilMoi40_100cm_inst",
+         # "SoilMoi100_200cm_inst",
+         # "RootMoist_inst",
+         # "SWE_inst") |>
+  ) |> 
+  group_by(month) |> 
+  summarise(stat="mean")
+
+ck <- gldas_monthly$ee_ob$first()
+# this should work,but idk
+ck$bandNames()$getInfo()
+
+
+1 kg/m2 = 0.1
+
+```
+
+```{r}
+sm <- gldas_aoi$select("SoilMoi0_10cm_inst")
+sm$size()$getInfo()
+gldas$size()$getInfo()
+gldas_aoi_clip$size()$getInfo()
+
+
+
+sm_2004_2009_mean <- sm$filterDate("2004-01-01","2009-12-31")$mean()
+sm_2004_2009_mean$bandNames()$getInfo()
+
+sm_2004_2009_mean_tidy<- as_tidyee(sm) |> 
+  filter(year %in% c(2004:2009)) |> 
+  summarise(stat="mean") 
+sm_2004_2009_mean_tidy$ee_ob$bandNames()$getInfo()
+```
+
+
+```{r}
+gldas_sm <- gldas$map(function(img) {
+    sm_total <- img$expression(
+      "float(SoilMoi0_10cm_inst+
+      SoilMoi10_40cm_inst+
+      SoilMoi40_100cm_inst+
+      SoilMoi100_200cm_inst
+      )",
+      opt_map = list(
+        SoilMoi0_10cm_inst = img$select("SoilMoi0_10cm_inst"),
+        SoilMoi10_40cm_inst = img$select("SoilMoi10_40cm_inst"),
+        SoilMoi40_100cm_inst = img$select("SoilMoi40_100cm_inst"),
+        SoilMoi100_200cm_inst = img$select("SoilMoi100_200cm_inst")
+      )
+    )$rename("sm_total")
+    img$addBands(sm_total)$select("sm_total")
+})
+
+gldas_sm$first()$bandNames()$getInfo()
+
+gldas_sm_tidy <- as_tidyee(gldas_sm)
+
+
+```
+
+```{r}
+sm_jan_baseline <- gldas_sm_tidy |> 
+  filter(year %in% c(2004:2009)) |> 
+  # group_by(month) |> 
+  summarise(stat="mean") |> 
+  filter(month==1)
+
+sm_jan_baseline <- gldas_sm_tidy |> 
+  filter(year %in% c(2004:2009)) |> 
+  summarise(stat="mean") 
+
+sm_jan_baseline$ee_ob$bandNames()$getInfo()
+
+
+gldas_sm_tidy$ee_ob$filterDate("2004-01-01","2009-12-31")$sum()$bandNames()$getInfo()
+
+
+
+#|> 
+  select(sm_baseline= "sm_total_mean")
+
+  
+  sm_jan_baseline$ee_ob$bandNames()$getInfo()
+  
+sm_jan_baseline$ee_ob$bandNames()$getInfo()
+
+sm_jan_yearly <- gldas_sm_tidy |> 
+  filter(year %in% c(2003:2021)) |> 
+  group_by(year, month) |> 
+  summarise(stat="mean") |> 
+  filter(month==1) #|> 
+  select(sm_yearly = "sm_total_mean")
+  
+sm_jan_yearly$ee_ob$first()$bandNames()$getInfo()
+rgee::ee_clean_container(name = "drive")
+
+sm_baseline_yearly <- sm_jan_yearly |> 
+  inner_join(sm_jan_baseline,by="month")
+
+
+sm_baseline_yearly$ee_ob$first()$select("sm_yearly")$bandNames()$getInfo()
+sm_baseline_yearly$ee_ob$first()
+
+sm_baseline_yearly$ee_ob$map(function(img){
+   sm_anomaly <- img$expression("float(sm_yearly-sm_baseline)",
+                                opt_map = list(
+                                  sm_yearly=img$select(sm_yearly),
+                                  sm_baseline= img$select(sm_baseline)
+                                ))$rename("sm_anomaly")
+   img$addBands(sm_anomaly)
+   
+                  
+  
+})
+```

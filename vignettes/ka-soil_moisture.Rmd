@@ -1,0 +1,130 @@
+---
+title: "ka-soil_moisture"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ka-soil_moisture}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(tidyverse)
+library(sf)
+library(leaflet)
+con <- quick_db_con(schema = "public")
+adm2<- st_read(con,"ssd_adm2")
+adm1<- st_read(con,"ssd_adm1")
+
+aoi <- adm2 |> 
+  filter(adm2_en %in%c("Leer","Mayendit")) |> 
+  select(adm2_en) |> 
+  rename(geometry="geom")
+
+soil_moisture_src <- "NASA_USDA/HSL/SMAP10KM_soil_moisture"
+soil_moisture <- ee$ImageCollection(soil_moisture_src)
+
+sm_tidy<- as_tidyee(soil_moisture)
+sm_tidy$vrt$time_start |> max()
+
+sm_july_mean<-sm_tidy |> 
+  filter(date>="2022-07-20",date<="2022-08-02") |> 
+  summarise(stat="mean")
+```
+
+
+```{r}
+moisture_palette <- RColorBrewer::brewer.pal("PuBuGn",n = 5)
+leaflet(aoi) |>
+  addTiles() |> 
+  addPolygons()
+ssm_viz <-  list(min=0 , 
+                 max= 25.39,
+                 palette=moisture_palette,
+                 bands="ssm_mean")
+smp_viz <-  list(min=0 , 
+                 max= 1,
+                 palette=moisture_palette,
+                 bands="smp_mean")
+
+ssma_viz <-  list(min=-4 , 
+                 max= 4,
+                 palette=moisture_palette,
+                 bands="ssma_mean")
+susm_viz <-  list(min=0 , 
+                 max= 274.6,
+                 palette=moisture_palette,
+                 bands="susm_mean")
+library(tidyverse)
+aoi_ee <- sf_as_ee(aoi)
+
+Map$centerObject(aoi_ee, 8)
+Map$addLayer(sm_july_mean$ee_ob,ssm_viz,"ssm")+
+  Map$addLayer(aoi_ee)
+Map$addLayer(sm_july_mean$ee_ob,smp_viz,"smp_viz")+
+  Map$addLayer(aoi_ee)
+Map$addLayer(sm_july_mean$ee_ob,ssma_viz,"ssma_viz")+
+  Map$addLayer(aoi_ee)
+
+Map$addLayer(sm_july_mean$ee_ob,susm_viz,"susm_viz")+
+  Map$addLayer(aoi_ee)
+
+```
+
+
+```{r}
+sm_tidy$ee_ob$first()$projection()$nominalScale()$getInfo()
+chirps_link <- "UCSB-CHG/CHIRPS/DAILY"
+chirps_ic<- rgee::ee$ImageCollection(chirps_link)$filterDate("2022-04-01","2022-08-02")
+
+chirps_ic$first()$projection()$nominalScale()$getInfo()
+chirps_tidy <-  chirps_ic |> as_tidyee()
+
+aoi_rain_time_series <- chirps_tidy |> 
+  ee_extract_tidy(aoi,scale=5500)
+
+aoi_time_series <- sm_tidy |> 
+  filter(date>="2022-04-01",date<="2022-08-02") |> 
+  ee_extract_tidy(aoi,scale = 12782)
+
+leer_cumulative_rain |> print(n=91)
+leer_cumulative_rain <- aoi_rain_time_series |> group_by(adm2_en) |> 
+  mutate(cum_rain= cumsum(value)) |> 
+  filter(adm2_en=="Leer") |> 
+  ungroup()
+mayendit_cumulative_rain <- aoi_rain_time_series |> group_by(adm2_en) |> 
+  mutate(cum_rain= cumsum(value)) |> 
+  filter(adm2_en=="Mayendit") |> 
+  ungroup()
+aoi_time_series |> 
+  filter(parameter=="smp") |> 
+  ggplot(aes(x=date, y=value,color=adm2_en))+
+  geom_line()#+
+  # geom_line(data= leer_cumulative_rain,
+  #           aes(x=date,y=cum_rain/100),
+  #           lwd=1,color="#fdae61",alpha=0.75)+
+  # geom_line(data= mayendit_cumulative_rain,
+  #           aes(x=date,y=cum_rain/100),
+  #           lwd=1,color="#fdae61",alpha=0.75)+
+  #  scale_y_continuous(
+  #   sec.axis= sec_axis(trans = ~.x*100,name = "AWD Cases")
+  # )
+
+
+aoi_time_series |> 
+  filter(parameter=="ssm") |> 
+  ggplot(aes(x=date, y=value,color=adm2_en))+
+  geom_line()
+
+aoi_rain_time_series |> 
+  ggplot(aes(x=date, y= value))+
+  geom_line()
+ee_chirps_spi
+```

@@ -1,0 +1,214 @@
+---
+title: "Urban Masking for Aggregations"
+subtitle: "Remote Sensing Methods"
+author: "Zack Arno (RS Department - IMPACT-Initiatives)"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    number_sections: FALSE
+    code_folding: hide
+    theme:
+      bg: "#D1D3D4"
+      fg: "#58585A"
+      primary: "#EE5859"
+      base_font:
+        google: "Roboto"
+      code_font:
+        google: "JetBrains Mono"
+bibliography: "references.bib"
+link-citation: true
+csl: "remote_sensing_journal.csl"
+---
+<style type="text/css">
+.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      warning = F,
+                      message = F,
+                      fig.fullwidth=TRUE,out.width = "100%")
+options(tidyverse.quiet = TRUE)
+```
+
+```{r,eval=F}
+---
+
+title: "Urban Masking for Aggregating Indicators"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{na-urban_masking_for_aggregations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: "references.bib"
+link-citation: true
+csl: "remote_sensing_journal.csl"
+---
+
+
+```
+## Intro & Problem
+
+Urbanized/built up land cover classes pose several unique challenges for remote sensing. In our case they complicate our understanding when attempting to assess vegetative health metrics and link those metrics to communities. In many cases, the communities we are interested in should be considered rural, but people still live in HHs on land that has been cleared and built (i.e roads, structures, other infrastructure). 
+
+**Problem Statement:** 
+
+- We want to use remote sensing to monitor environmental conditions affecting communities/villages of interest.
+- Most commonly we receive point or polygon data representing the population/village/community.
+- Often these spatial data are located on built-up areas.
+- Environmental/climatic monitoring of the built areas makes sense for certain indicators like rainfall. However, vegetative health of the built up area is less relevant
+- Vegetative health of areas directly around the community are likely to have more impact on various living conditions of the community as these are the areas where natural resources are grown/harvested
+- We want to monitor these conditions for thousands of villages so we need a solution that is scalable.
+
+
+
+```{r libraries}
+library(surveyGEER)
+library(tidyrgee)
+library(rgee)
+library(tidyverse)
+devtools::load_all()
+ee_Initialize(quiet = T)
+library(thematic)
+thematic::thematic_on()
+```
+
+## Data Sources/Processing
+
+### Land Use Land Cover
+
+There are a variety of global land use land cover data sets available. Some of the most commonly used include: a. Dynamic World (Google)[@brown2022dynamic], b. ESA WorldCover [@zanaga2021esa], c. ESRI 2020 [@karra2021global]. They have different strengths and weaknesses, but for reasons discussed in Chapter X as well as [@venter2022global] ESA WorldCover is a good starting place for us.
+
+Let's look at the `ESA World Cover` classification for a rural town in Northern NGA. If you add satellite imagery to the background (click layers button and check "Esri.WorldImagery") it is apparent that the LULC classification does a decent job classifying built-up areas. The rest of the categories are less clearly accurate
+
+```{r}
+#set aoi as rural town
+rural_town<-ee$Geometry$Point( list(5.501897, 13.12175))
+
+# load in landcover
+esa_ic <- ee$ImageCollection("ESA/WorldCover/v100")
+esa_img <- ee$Image(esa_ic$first())$rename("esa_lulc_10m")
+
+# grab colors/labels for legend
+esa_color_table<-ee_landcover_lookup(landcover = "esa")
+esa_labels = esa_color_table$category
+esa_colors <-  esa_color_table$hex
+
+# create viz
+vis_esa <- list(min=09,
+                max=110,
+                palette=esa_colors,
+                values= esa_labels,
+                opacity=0.5)
+
+
+
+# center map
+Map$centerObject(rural_town,14)
+
+# add layers and legend
+m_esa <-  Map$addLayer(esa_img,vis_esa,"ESA Land Cover")
+esa_legend <- Map$addLegend(vis_esa, name = "ESA Legend", color_mapping = "character")
+m_esa_with_leg <- m_esa+esa_legend
+
+# visualize
+m_esa_with_leg
+```
+
+### Vegetative Health Indicator
+
+Now let's visualize some `NDVI` in the same area. Below we are visualizing median NDVI values over the growing season from the MODIS Terra satellite. On top of the NDVI visualization we are displaying just the "Urban/Built Up" mas from the `ESA World Cover` layer. 
+
+As you can see, especially if you toggle on and off the urban layer, The town under the urban layer has lower NDVI values than the area immediately surrounding it. If you look at the satellite basemap this makes sense - the area is built up and has a lot of bare soil which has a lower NDVI than vegetation. While this is true, if we are looking at population points inside the urban area the vegetative health in the area surrounding the urban/built layer is likely to be more connected to there conditions as this is where most of the resources are grown/harvested.
+
+```{r}
+
+modis_ic <- ee$ImageCollection(get_modis_link("terra"))
+
+# mask clouds and scale ndvi
+modis_ic_masked <-  cloud_scale_modis_ndvi(modis_ic,mask = "cloud&quality")
+# make tidyee
+ndvi_tidy <- as_tidyee(modis_ic_masked)
+
+# filter
+ndvi_growing_season <- ndvi_tidy |> 
+  filter(date>="2021-06-20",date<="2021-09-26")
+
+ndvi_growing_season_median <- ndvi_growing_season |> 
+  summarise(stat="median")
+
+
+
+```
+
+
+
+```{r}
+urban_built <- esa_img$updateMask(esa_img$eq(50))
+modis_ndvi_viz <- list(min=0,
+                       max=1.1,
+                       palette=c("orange","yellow","green","darkgreen")
+)
+
+map_ndvi <-  Map$addLayer(ndvi_growing_season_median$ee_ob,
+                          visParams = modis_ndvi_viz,
+                          "ndvi growing"
+                          )
+
+map_ndvi+
+  Map$addLayer(urban_built, list(min =0, 
+                                 max=1,
+                                 palette="red",opacity=0.3),
+               "Urban Built")
+```
+
+## Solution
+
+- Mask the urban area from the NDVI layer
+  + below you can see the urban area masked from the NDVI image. The pixel values are set to null.
+  
+```{r}
+ndvi_urban_masked <- ndvi_growing_season_median$ee_ob$updateMask(esa_img$neq(50))
+
+map_ndvi_masked <-  Map$addLayer(ndvi_urban_masked,
+                          visParams = modis_ndvi_viz,
+                          "NDVI Growing Season (Urban Masked)"
+                          )
+
+map_ndvi_masked
+```
+
+- Next we run a focal statistic (moving window calculation) that reclassifies each  pixel based on a provided number of nearest neighbors.
+  + In the below visualization we have run a `focal_median` statistic on the urban-masked NDVI Image using a 3 pixel (750 m) radius. As the urban areas were pre-masked none of the original NDVI values within the urban area were used in the calculation. The urban area where we are going extract our NDVI indicators from has now been filled with values that more closely approximate the areas around the urban zone than previously.
+
+```{r}
+ndvi_urban_masked_focal_median <- ndvi_urban_masked$
+  focal_median( radius = 3,
+                kernelType= "circle",
+                units="pixels")$
+  reproject(ndvi_tidy$ee_ob$first()$projection())
+
+
+map_ndvi+Map$addLayer(
+  ndvi_urban_masked_focal_median,
+  visParams = modis_ndvi_viz,
+  "NDVI Focal Median")+
+    Map$addLayer(urban_built, list(min =0, 
+                                 max=1,
+                                 palette="red",opacity=0.3),
+               "Urban Built")
+  
+```
+
+## Discussion
+
+- The main subjective decisions in this process are within regards to the focal statistic: `kernelType` , `focal statistic`, and `radius` can all be adjusted for different reasons. For our purposes `radius` will most likely be the most important consideration. 
+- A larger radius will include more pixels in `focal statistic` and therefore create a smoother surface.
+
+## References

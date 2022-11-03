@@ -1,0 +1,30 @@
+---
+title: "rs_datasets-aa-global_rainfall"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{rs_datasets-aa-global_rainfall}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+```
+
+[Assessment of the GPM IMERG and CHIRPS precipitation estimations for the steppe part of the Crimea](http://www.mhwm.pl/Assessment-of-the-GPM-IMERG-and-CHIRPS-precipitation-estimations-for-the-steppe-part,133088,0,2.html)
+
+- CHIRPS
+- IMERGE
+- GPM
+- TRMM
+
+
+details:
+[GPM](https://docserver.gesdisc.eosdis.nasa.gov/public/project/GPM/IMERG_ATBD_V06.pdf)

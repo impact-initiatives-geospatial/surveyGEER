@@ -1,0 +1,21 @@
+---
+title: "a1-Introduction"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{a1-Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+# Introduction
+= = = 
+
+```{r setup}
+library(surveyGEER)
+```

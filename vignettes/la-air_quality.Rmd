@@ -1,0 +1,245 @@
+---
+title: "la-air_quality"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{la-air_quality}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(rgee)
+library(sf)
+library(tidyverse)
+library(tidyrgee)
+ee_Initialize()
+```
+
+# Sentinel 5 P
+- has offline versions and NRT versions
+- NRT are ingested more quickly and hence more up to date. 
+  + We comparing NRT vs Offline NO2 we NRT has images from yesterday whereas the offline version appears to have been last updated approximately 10 days ago
+  
+```{r}
+# Sentinel-5P OFFL SO2: Offline Sulphur Dioxide -1113.2 meters
+so2 <- ee$ImageCollection("COPERNICUS/S5P/OFFL/L3_SO2")
+# Sentinel-5P OFFL NO2: Offline Nitrogen Dioxide
+no2_off <- ee$ImageCollection("COPERNICUS/S5P/OFFL/L3_NO2")
+no2_nrt <- ee$ImageCollection("COPERNICUS/S5P/NRTI/L3_NO2")
+
+# Sentinel-5P OFFL CH4: Offline Methane
+ch4 <- ee$ImageCollection("COPERNICUS/S5P/OFFL/L3_CH4")
+
+no2_off_tidy <-  as_tidyee(no2_off)
+no2_nrt_tidy <-  as_tidyee(no2_nrt)
+
+no2_off_tidy$vrt$time_start |> max()
+no2_nrt_tidy$vrt$time_start |> max()
+```
+
+I think that for most of my current purposes and this demonstration the offline version is fine.
+
+From reading it seems that this data can be noisy... therefore it makes sense to aggregate... will also have to deal with clouds
+
+
+```{r}
+
+bbox_ee <- col_pt_data_clean |> 
+  st_bbox() |> 
+  st_as_sfc() |> 
+  sf_as_ee()
+
+cloud_mask_s5p <-  function(image,threshold) {
+      return(
+        image$updateMask(image$select("cloud_fraction")$lt(threshold))
+      )
+    }
+
+# // Map the cloud masking functions over NO2 data
+no2_cloudmasked = no2_off$
+  select(list("NO2_column_number_density",
+              "tropospheric_NO2_column_number_density",
+              'cloud_fraction'))$
+  filterDate('2018-05-01', '2022-05-01')$
+  # filterBounds(geometry)
+  map(function(img){
+    cloud_mask_s5p(img,threshold = 0.05)}
+    )
+
+
+NO2_max = 0.0010;
+NO2_min = 0;
+NO2_viz = list(
+  min= NO2_min,
+  max= NO2_max,
+  opacity= 0.5,
+  palette= c("black", "blue", "purple", "cyan", "green", "yellow", "red"),
+  bands="NO2_column_number_density"
+  )
+
+Map$centerObject(bbox_ee,7)
+Map$addLayer(no2_cloudmasked$median(),NO2_viz,"NO2")
+
+```
+
+
+
+```{r}
+
+so2$first()$bandNames()$getInfo()
+
+ # // Map the cloud masking functions over NO2 data
+so2_cloudmasked = so2$
+  select(list("SO2_column_number_density",
+              "SO2_column_number_density_amf",
+              "SO2_column_number_density_15km",
+              'cloud_fraction'))$
+  filterDate('2018-05-01', '2022-05-01')$
+  # filterBounds(geometry)
+  map(function(img){
+    cloud_mask_s5p(img,threshold = 0.05)}
+    )
+
+
+
+
+NO2_max = 0.0001;
+NO2_min = 0;
+NO2_viz = list(
+  min= NO2_min,
+  max= NO2_max,
+  opacity= 0.5,
+  palette= c("black", "blue", "purple", "cyan", "green", "yellow", "red"),
+  bands="SO2_column_number_density"
+  )
+
+Map$centerObject(bbox_ee,7)
+Map$addLayer(so2_cloudmasked$median(),NO2_viz,"NO2")
+
+```
+
+
+```{r}
+swims<- read_csv("../REACH_SOM/SWIMS_LiveMap_Dataset_20220808-135749.csv")
+reach_hc <-  readxl::read_excel("../REACH_SOM/Master_Source_16062022.xlsx","Non_IDP")
+reach_new_idp <-  readxl::read_excel("../REACH_SOM/Master_Source_16062022.xlsx","new_IDP_sites")
+reach_old_idp <-  readxl::read_excel("../REACH_SOM/Master_Source_16062022.xlsx","old_IDP_sites")
+
+con_som <- quick_db_con(schema = "som")
+con <- quick_db_con(schema = "public")
+swims |>
+  glimpse()
+swims |> count(water_source_type,functioning) |> print(n=21)
+swims$functioning
+swims_sf <- swims |> 
+  mutate(
+    type_functioning= case_when(
+      is.na(functioning)~ glue::glue("{water_source_type} (no data)"),
+      functioning == "No"~ glue::glue("{water_source_type} (non-functional)"),
+      functioning == "Yes"~ glue::glue("{water_source_type} (functional)"),
+      functioning == "Abandoned"~ glue::glue("{water_source_type} (Abandoned)"),
+    )
+  ) |> 
+  st_as_sf(coords= c("longitude","latitude"), crs= 4326)
+
+
+swims_utm <- swims_sf |> 
+  reach_reproject_utm("som")
+
+swims_functional_water_points <-  swims_utm |> 
+  filter(water_source_type!="Dam", functioning=="Yes",!is.na(functioning))
+
+
+con_som <- quick_db_con(schema = "som") 
+buildings <- st_read(con_som,"som_bay_buildings_google")
+building_pts <- buildings |> 
+  st_centroid()
+building_pts_utm <- building_pts|> 
+  reach_reproject_utm("som")
+
+dist_to_closest_waterpoint <- st_nearest_points(x =building_pts_utm,y = swims_functional_water_points )
+nearest_water_pt_idx <- dist_to_closest_waterpoint
+dist_to_closest_waterpoint<-st_distance(building_pts_utm,swims_functional_water_points[nearest_water_pt_idx,])
+
+building_pts_utm |> 
+  mutate(dist_to_wp = dist_to_closest_waterpoint)
+
+
+
+
+
+
+
+swims |> 
+  filter(is.na(longitude))
+swims_sf |> 
+  filter(is.na(longitude))
+swims_sf |> 
+  st_write(con,"som_swims_water_points_2019")
+length(unique(swims$code))
+swims |> 
+  count(water_source_type)
+
+reach_hc |> count()
+reach_hc |> count(Access)
+reach_hc |> count(NAME)
+
+reach_hc |> filter(is.na(MGRS_CODE_X))
+reach_hc |> filter(is.na(MGRS_CODE_Y)|is.na(MGRS_CODE_X))
+
+
+reach_hc |> 
+  mutate(missing_cooridnate= if_else(is.na(MGRS_CODE_X)|is.na(MGRS_CODE_Y),
+                                     "missing coordinates" ,
+                                     "has coordinates")) |> 
+  janitor::tabyl(missing_cooridnate)
+
+
+reach_new_idp |> 
+  glimpse()
+
+reach_old_idp |> 
+  glimpse()
+
+reach_new_idp |> 
+  mutate(missing_cooridnate= if_else(is.na(gps_latitude)|is.na(gps_longitude),
+                                     "missing coordinates" ,
+                                     "has coordinates")) |> 
+  janitor::tabyl(missing_cooridnate)
+
+reach_old_idp |> 
+  mutate(missing_cooridnate= if_else(is.na(gps_latitude)|is.na(gps_longitude),
+                                     "missing coordinates" ,
+                                     "has coordinates")) |> 
+  janitor::tabyl(missing_cooridnate)
+```
+
+```{r}
+
+bay_fc <- ee$FeatureCollection("FAO/GAUL/2015/level1")$
+  filter(ee$Filter$eq('ADM0_NAME', 'Somalia'))$
+  filter(ee$Filter$eq('ADM1_NAME', 'Bay'))
+google_buildings <-  ee$FeatureCollection('GOOGLE/Research/open-buildings/v1/polygons')
+
+buildings_bay = google_buildings$filter('confidence >= 0.60')$filterBounds(bay_fc)
+# buildings_bay_fc <- buildings_bay |> rgee::ee_as_sf(via = "drive")
+# buildings_bay_sf <- buildings_bay_fc
+
+
+
+
+task_vector<- ee_table_to_drive(collection = buildings_bay,fileFormat = "GeoJSON")
+task_vector$start()
+
+ee_monitoring(task_vector) # optional
+# amk_geom <- ee_gcs_to_local(task = task_vector)
+buildings_bay_local <- ee_drive_to_local(task = task_vector)
+```

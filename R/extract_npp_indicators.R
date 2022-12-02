@@ -7,9 +7,18 @@ extract_npp_indicators <-  function(geom_sf, img_scale= 500){
   fc_values <- npp_indicators_img$
     sampleRegions(collection= geom_ee,
                   scale= img_scale)
-
-  rgee::ee_as_sf(fc_values,maxFeatures = nrow(geom_sf)*2)
+  if(nrow(geom_sf)<5000){
+    # maxFeatures = nrow(geom_sf)*2 # some odd code in `rgee:::ee_fc_to_sf_getInfo_batch` makes it better to comment this out?
+    res <- rgee::ee_as_sf(fc_values)
+  }
+  if(nrow(geom_sf)>5000){
+    res <- rgee::ee_as_sf(fc_values,maxFeatures = nrow(geom_sf))
+  }
+  return(res)
 }
+
+
+
 
 
 get_npp_indicators <-  function(){

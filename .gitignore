@@ -16,8 +16,9 @@ vignettes/workflow.Rmd
 *.kml
 
 *.rds
-*.Rmd
+*_report.Rmd
 *.html
+*workflow2.rmd
 
 
 *.xlsx

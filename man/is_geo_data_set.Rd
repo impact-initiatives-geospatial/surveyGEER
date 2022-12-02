@@ -4,7 +4,7 @@
 \alias{is_geo_data_set}
 \title{check if geo data has already been set up}
 \usage{
-is_geo_data_set()
+is_geo_data_set(country_code = NULL)
 }
 \description{
 check if geo data has already been set up

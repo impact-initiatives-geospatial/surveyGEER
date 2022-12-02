@@ -4,7 +4,7 @@
 \alias{prep_rs_modis_target}
 \title{Title}
 \usage{
-prep_rs_modis_target(df)
+prep_rs_modis_target(df, uid_col = "new_uid")
 }
 \arguments{
 \item{...}{}

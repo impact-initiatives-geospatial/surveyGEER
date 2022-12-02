@@ -74,26 +74,26 @@ wrangle_rs_targets_wide <-  function(...){
 #'
 #'
 
-prep_rs_modis_target <-  function(df) {
+prep_rs_modis_target <-  function(df,uid_col="new_uid") {
   df |>
     mutate(name = glue::glue("{parameter}_{month(date,abbr=T,label=T)}{year(date)}")) |>
-    select(new_uid, name, value)
+    dplyr::select(dplyr::all_of(c(uid_col, "name", "value")))
 }
 
 
 
-prep_rs_chirps_intensity_target <-  function(df,moi=5,...){
+prep_rs_chirps_intensity_target <-  function(df,moi=5,uid_col="new_uid",...){
   name_suffix <-  lubridate::month(moi,label=T,abbr=T) |> tolower()
   df |>
-    mutate(
-      period_of_interest = case_when (month(date)==moi~"30_days",
-                                      month(date)==moi-1~"60_days",
-                                      month(date)==moi-2~"90_days")
+    dplyr::mutate(
+      period_of_interest = case_when (lubridate::month(date)==moi~"30_days",
+                                      lubridate::month(date)==moi-1~"60_days",
+                                      lubridate::month(date)==moi-2~"90_days")
     ) |>
-    mutate(
+    dplyr::mutate(
       name= glue::glue("rx{parse_number(parameter)}d_{parse_number(period_of_interest)}d_{name_suffix}")
     ) |>
-    select(new_uid, name, value)
+    dplyr::select(dplyr::all_of(c(uid_col, "name", "value")))
 
 }
 

@@ -1,0 +1,190 @@
+---
+title: "pa-rainy_season_delay_kenya"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{pa-rainy_season_delay_kenya}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(surveyGEER)
+library(tidyverse)
+library(tidyrgee)
+library(rgee)
+library(sf)
+library(lubridate)
+devtools::load_all()
+ee_Initialize()
+```
+
+# GEE/rgee
+
+if you don't have the daily rainfall data you can download it here otherwise you can skip to the next chunk and uncomment the line to load the file.
+```{r, eval= F}
+chirps <-  ee$ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+
+ken_adm2<- rgeoboundaries::geoboundaries( c("Kenya"),adm_lvl = 2)
+
+turkana <- ken_adm2 |> 
+  filter(str_detect(shapeName,"TURK"))
+
+# cast to single poly
+turkana_poly <-  st_cast(turkana,"POLYGON")
+
+# simplify file/rm col names
+turkana_poly <- turkana_poly |> 
+  select(shapeName)
+
+# bring in tidyrgee tidyee format
+chirps_tidy <-  as_tidyee(chirps)
+
+# extraction - this part takes the longest
+chirps_daily_turkana <- chirps_tidy |> 
+  ee_extract_tidy(y = turkana_poly,stat = "median",scale = 5500, via = "drive")
+
+# write_rds(chirps_daily_turkana,here::here("turkana_daily_precip_historical.rds"))
+
+```
+
+if necessary readfile/adjust path
+```{r}
+# adjust path if necessary
+# read_rds(here::here("turkana_daily_precip_historical.rds"))
+```
+
+# Filter data/set up baselines
+```{r}
+
+chirps_daily_turkana <- chirps_daily_turkana |> 
+  mutate(
+    year= year(date),
+    month= month(date),
+    week= week(date)
+  )
+chirps_turkana2022 <- chirps_daily_turkana |> 
+  filter(
+    year==2022
+  )
+chirps_historical_turkana <- chirps_daily_turkana |> 
+  filter(year<=2021)
+```
+
+
+
+```{r}
+historical_precip_weekly_accumulation <- chirps_historical_turkana |> 
+  group_by(year, week) |> 
+  summarise(
+    weekly_precip = sum(value)
+  ) |> 
+  mutate(
+    cumulative_precip = cumsum(weekly_precip)
+  ) |> 
+  group_by(week) |> 
+  summarise(
+    cumulative_precip= mean(cumulative_precip),
+    # median_cum_precip= median(cumulative_precip),.groups = "drop"
+  ) |> 
+  mutate(
+    date=  ISOweek::ISOweek2date(paste0("2022","-W",formatC(week, width=2, flag="0"),"-1")),
+    time_frame= "historical"
+  )
+
+weekly_cumulative_precip_2022 <- chirps_turkana2022 |> 
+  group_by(week) |> 
+  summarise(
+    weekly_precip = sum(value)
+  ) |> 
+  mutate(
+    cumulative_precip = cumsum(weekly_precip)
+  ) |> 
+  group_by(week) |> 
+  summarise(cumulative_precip=max(cumulative_precip)) |> 
+  select(week, cumulative_precip) |> 
+  mutate(
+    time_frame = "2022",
+    date= ISOweek::ISOweek2date(paste0("2022","-W",formatC(week, width=2, flag="0"),"-1"))
+    )
+
+historical_current <-  bind_rows(weekly_cumulative_precip_2022,historical_precip_weekly_accumulation)
+```
+
+
+# Plot historical vs 2022
+
+```{r}
+
+
+historical_current |> 
+  ggplot(aes(x=date,
+             y=cumulative_precip,
+             color=time_frame, 
+             group=time_frame
+  )
+  )+
+  annotate("rect",
+           xmin=lubridate::ymd(c("2022-03-01")),
+           xmax=lubridate::ymd(c("2022-05-31")),
+           ymin=0, 
+           ymax=Inf, 
+           alpha=0.2, 
+           fill="red") +
+  annotate("rect",
+           xmin=lubridate::ymd(c("2022-10-01")),
+           xmax=lubridate::ymd(c("2022-12-31")),
+           ymin=0, 
+           ymax=Inf, 
+           alpha=0.2, 
+           fill="red") +
+
+  geom_path()+
+  scale_x_date(
+    date_breaks = "1 month",date_labels = "%b"
+  )+
+  labs(y="Cummulative Precipitation")+
+  ggtitle("Turkana Cumulative Precipiation",
+          subtitle = "MAM & OND Seasons Highlighted")+
+  theme_bw()
+```
+
+
+Zoom in on seasons
+```{r}
+historical_current |> 
+  filter(date>="2022-03-01",date<="2022-05-31") |> 
+  ggplot(aes(x=date,
+             y=cumulative_precip,
+             color=time_frame, 
+             group=time_frame
+  )
+  )+
+  annotate("rect",
+           xmin=lubridate::ymd(c("2022-03-01")),
+           xmax=lubridate::ymd(c("2022-05-31")),
+           ymin=0, 
+           ymax=Inf, 
+           alpha=0.2, 
+           fill="red") +
+  geom_path()+
+  scale_x_date(
+    date_breaks = "1 month",
+    minor_breaks = "1 week",
+    date_labels = "%b"
+  )+
+  labs(y="Cummulative Precipitation")+
+    ggtitle("Turkana Cumulative Precipiation",
+          subtitle = "MAM Season")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle= 90))
+
+
+```
+

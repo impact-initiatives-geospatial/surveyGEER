@@ -158,7 +158,9 @@ ee_chirps_spi <- function(x=NULL,
 
 
 
-extract_spi_to_values <-  function(geom_sf,mo_lags= list(1,3,6,9,12),moi=5){
+extract_spi_to_values <-  function(geom_sf,
+                                   mo_lags= list(1,3,6,9,12),
+                                   moi=5){
   # target wrapper specific assertion
   assertthat::assert_that(length(moi)==1,
                           msg = "targets extract wrapper not tested with mois>1"
@@ -183,6 +185,80 @@ extract_spi_to_values <-  function(geom_sf,mo_lags= list(1,3,6,9,12),moi=5){
   geom_ee <-  rgee::sf_as_ee(geom_sf)
 
   fc_values <- spis_2022_img$
+    sampleRegions(collection= geom_ee,
+                  scale= 5500)
+  cat("converting extracting feature collection to data.frame")
+  if(nrow(geom_sf)>5000){
+    df_values <-  rgee::ee_as_sf(fc_values,via="drive")
+  }
+  if(nrow(geom_sf)<=5000){
+    df_values <-  rgee::ee_as_sf(fc_values)
+  }
+  res <- df_values |>
+    rename_with(.cols = matches("^precipitation"),
+                .fn = ~glue::glue("{moi_label}_spi{readr::parse_number(.x)}"))
+  return(res)
+
+  # res <- spis_2022 |>
+    # ee_extract_tidy(y = geom_sf,stat = "median",scale = 5500,via = "gcs")
+  # return(spis_2022)
+
+}
+
+
+#' extract_spi_to_values2 same as above, but adding yoi parameter.
+#' @description made as new function so that i don't have to re-run all SPI targets...
+#'  this is a good example of where `{targets}` and package dev are not playing to nice
+#'
+#'
+#' @param geom_sf
+#' @param mo_lags
+#' @param moi
+#' @param yoi
+#'
+#' @return
+#' @export
+#'
+#' @examples
+extract_spi_to_values2 <-  function(x,
+                                    geom_sf,
+                                    mo_lags= list(1,3,6,9,12),
+                                    moi=5,
+                                    yoi
+                                   ){
+  # target wrapper specific assertion
+  assertthat::assert_that(length(moi)==1,
+                          msg = "targets extract wrapper not tested with mois>1"
+                          )
+
+  if(inherits(x = x,what = "ee.imagecollection.ImageCollection")){
+    x <- as_tidyee(x)
+  }
+  x_filt <- x |>
+    filter(year<=yoi)
+
+
+  cat("calculating SPIs on pixel-basis\n")
+  moi_label <- lubridate::month(moi, label=T, abbr= T) |> as.character()
+  spi_imgs <- mo_lags |>
+    purrr::map(
+      ~ee_chirps_spi(x =x_filt, window = .x,window_unit = "month",moi = moi,.load_chirps = F)
+    )
+  cat("filter image to yoi")
+  spi_imgs_yoi <- spi_imgs |>
+    purrr::map(
+      ~.x |> filter(year==yoi)
+    )
+  cat("join img by month")
+  spi_yoi <- purrr:::reduce(.x=spi_imgs_yoi,.f = inner_join, by ="month")
+  # if this is an image we might be better of with sampleRegions
+  # cat(class(spis_2022$ee_ob))
+  cat("extracting spi to points\n")
+  spi_yoi_img <- ee$Image(spi_yoi$ee_ob$first())
+  # spis_2022_img <- ee$Image(spis_2022_imgs$ee_ob$first())
+  geom_ee <-  rgee::sf_as_ee(geom_sf)
+
+  fc_values <- spi_yoi_img$
     sampleRegions(collection= geom_ee,
                   scale= 5500)
   cat("converting extracting feature collection to data.frame")

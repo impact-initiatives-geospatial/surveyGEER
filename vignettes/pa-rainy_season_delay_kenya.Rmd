@@ -176,7 +176,7 @@ historical_current |>
   geom_path()+
   scale_x_date(
     date_breaks = "1 month",
-    minor_breaks = "1 week",
+    minor_breaks = "1 day",
     date_labels = "%b"
   )+
   labs(y="Cummulative Precipitation")+
@@ -185,6 +185,7 @@ historical_current |>
   theme_bw()+
   theme(axis.text.x = element_text(angle= 90))
 
-
+historical_current |> 
+  filter(cumulative_precip>18,cumulative_precip<30)
 ```
 

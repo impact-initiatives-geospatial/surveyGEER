@@ -11,25 +11,9 @@
 make_overview_hex_map <-function(sf_geom,
                                  country_code,
                                  hex_size) {
-  data_utm <- sf_geom |>
-    reach_reproject_utm(country_code = country_code)
 
-  grid_utm <- data_utm |>
-    st_make_grid(cellsize = hex_size, square = F) |>
-    st_as_sf() |>
-    rename(geometry = x) |>
-    mutate(uid = row_number())
+  grid_wgs <- make_hex_grid(sf_geom = sf_geom,country_code = country_code,hex_size = hex_size)
 
-  pts_per_grid <- data_utm |>
-    st_join(grid_utm) |>
-    st_drop_geometry() |>
-    group_by(uid) |>
-    summarise(num_pts = n(),)
-
-  grid_wgs <-  grid_utm |>
-    st_transform(crs = 4326) |>
-    left_join(pts_per_grid, by="uid") |>
-    filter(!is.na(num_pts))
   qpal <-
     leaflet::colorNumeric(
       RColorBrewer::brewer.pal(n = 7, name = "YlOrRd"),
@@ -65,3 +49,27 @@ cat_pct <- function(df,indicator){
 
 }
 
+make_hex_grid <-  function(sf_geom,
+                           country_code,
+                           hex_size){
+  data_utm <- sf_geom |>
+    reach_reproject_utm(country_code = country_code)
+
+  grid_utm <- data_utm |>
+    st_make_grid(cellsize = hex_size, square = F) |>
+    st_as_sf() |>
+    rename(geometry = x) |>
+    mutate(uid = row_number())
+
+  pts_per_grid <- data_utm |>
+    st_join(grid_utm) |>
+    st_drop_geometry() |>
+    group_by(uid) |>
+    summarise(num_pts = n(),)
+
+  grid_wgs <-  grid_utm |>
+    st_transform(crs = 4326) |>
+    left_join(pts_per_grid, by="uid") |>
+    filter(!is.na(num_pts))
+
+}

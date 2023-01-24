@@ -184,6 +184,7 @@ compile_rs_categorical_long <- function(country_code,...){
     })
   res_list_long |>
     bind_rows()
+}
   # okay we should put the double pivot after cleaning!!!
   #|>
 
@@ -195,7 +196,7 @@ compile_rs_categorical_long <- function(country_code,...){
 
 
 
-}
+
 
 #' Title
 #'
@@ -372,6 +373,14 @@ format_rs_indicators_long <- function(country_code,...){
   list(categorical =categoricals_long,numeric=numerics_long)
 
 }
+format_rs_indicators_long_hsmv <- function(country_code,...){
+  data_list <- dplyr::lst(...)
+
+  categoricals_long <- compile_clean_rs_categoricals(country_code=country_code,...)
+  numerics_long <- compile_clean_rs_numerics(...)
+  list(categorical =categoricals_long,numeric=numerics_long)
+
+}
 
 #' Title
 #'
@@ -407,3 +416,12 @@ format_rs_indicators_wide <- function(rs_long){
   left_join(numerics_wide,cateogricals_wide, by ="new_uid")
 
 }
+
+
+# load__hsmv_compiled <-  function(fp){
+  # hsmv <-  read_rds(fp)
+#   hsmv_split<- split(hsmv,hsmv$country)
+#   hsmv_split |>
+#     sf::st_as_sf(coords=c("longitude","latitude"))
+#
+# }

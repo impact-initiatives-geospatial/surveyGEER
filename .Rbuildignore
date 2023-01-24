@@ -10,3 +10,4 @@
 ^R/setup_geo_data\.R$
 ^data/metadata\.R$
 ^data/sample_hh_data\.xlsx$
+^data-raw$

@@ -1,0 +1,201 @@
+---
+title: "workflow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{workflow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  echo = TRUE#,
+  # eval = FALSE
+)
+```
+
+# Intro
+
+Welcome, this document walks you through the process of sharing anonymized data for remote sensing analysis withe HQ team.
+
+## Set up
+
+To follow this tutorial you will need to make sure that [Rstudio](https://www.rstudio.com/products/rstudio/) is installed (you can download the free tier)
+
+1. Click this link to access the [surveyGEER GitHub repository](https://github.com/impact-initiatives-geospatial/surveyGEER)
+2. Click the green `clone` button and then `download zip`
+3. Unzip the file
+4. Open the unzipped folder and double click `surveyGEER.rproj`
+5. The HQ RS analyst will have sent you 2 files. Place the `workflow.Rmd` file inside the `vignettes/` folder
+6. Place the `decouple_coordinates.R` file inside of the `R/` directory
+
+You have finished the initial set up. It is now time run the code that sets up the data.
+
+## Sharing Data
+
+1. After clicking the `surveyGEER.rproj` file in step 4 above, Rstudio should have opened up. 
+2. The file that built this document you are reading is the `workflow.Rmd` file you put int the  `vignettes/` folder in step 5 above. You can open that file up using your file browser or the file navigation pane that is the lower right corner of your R studio console.
+3. Once open you will see the text you are reading displayed, but in a slightly different format. This is an `.Rmd` document it allows you to write in plain text and while also writing R code in designated chunks. These can be `knit` into reports like the one you are reading.
+4. Head to the `## Sharing Data` section and look at run the first code chunk (labelled `library_setup`). This loads required libraries/tools. If you receive any errors saying that you don't have the packages required, you can uncomment the code below the library calls to install those packages. Press the side-ways triangle in the top right corner of the chunk to run the entire chunk. If you need to run line by line you can bring the cursor to the line and press `ctrl + enter` . The first chunk looks like this:
+
+
+```{r library_setup}
+devtools::load_all()
+library(tidyverse)
+library(here)
+# install.packages("tidyverse")
+# install.packages("here")
+# install.packages("sf")
+```
+
+**On to the next code chunk**
+
+Here is where you must supply some parameters specific to your data set: 
+
+- Save your HH data set as a `.csv` file to the data folder 
+- enter the path for the file (should start with "data/")
+- The rest are column names in the data set that you have manual enter. Replace "enter here" with the correct column name
+- ignore the clean data part for now
+
+```{r}
+
+
+path_to_data_with_coords_csv <-  file.path( Sys.getenv("NGA_MSNA2022"),"nga_nw_msna.xlsx")
+dat <-  readxl::read_xlsx(here::here(path_to_data_with_coords_csv))
+dat <-  read_rds(here::here("data/hsmv/hsmv_bfa_car_drc_ssd_coords.rds"))
+# dat <-  (here::here(path_to_data_with_coords_csv),locale = readr::locale(encoding = "latin1"))
+# dat$  
+latitude_col_name <- "latitude"
+longitude_col_name <- "longitude"
+uid_col_name<- "uuid"
+
+# column names
+longitude_col_name <- "enter here"
+latitude_col_name <-  "enter here"
+uid_col_name <-  "enter_here"
+cols_to_keep <- NULL
+
+```
+
+Run the chunk below it will:
+- create a `data_share` folder with anonymized coordinates 
+- create a `vault` folder with a lookup table
+- you can share the contents of the `data_share` folder with the RS analyst
+- keep the `vault` folder and do not loose or share it
+
+You are done. In a couple days or less the RS analyst will contact you to provide you with the RS data. When this happens jumpt down to the `## Merging Data` section below.
+
+```{r}
+dat <- dat |> 
+  filter(!is.na(!!sym(latitude_col_name)))
+
+decouple_coordinates2(df = dat,
+               uuid = uid_col_name,
+               lon = longitude_col_name ,
+               lat = latitude_col_name ,
+               cols_to_keep= cols_to_keep,
+               country_code = "hsmv_compiled"
+               )
+
+# read_rds("data_share/coords_anonymized.rds")
+# read_rds("vault/lookup.rds")
+# done
+```
+ 
+## Merging Data 
+
+- If you provided the clean data originally for the data sharing you can copy the `path` and `uid` information into this chunk.     +If you have a newer/cleaner data set please provide the new path and uid information below. In this case I also recommend saving the new/clean data as a `.csv` in the `data` folder. 
+- enter your offices country code in lower case (i.e "bgd","irq", "som","ssd")
+- run this chunk (green triangle- top right)
+
+
+```{r}
+
+country_code <- "car"
+
+path_to_clean_data <-  "20221019_CAR_clean_data_HSMV.csv"
+if(path_to_clean_data!="enter here"){
+clean_data <-  read_csv(path_to_clean_data,locale = readr::locale(encoding = "latin1"))
+}
+
+clean_data <-  read_rds("vault/hsmv_compiled_lookup.rds")
+# clean_data <-  dat
+# clean_data$
+
+clean_data_uid_col_name <-  "uuid"
+
+```
+
+
+
+
+- run this chunk and now the merged data is output to your `data_share` folder.
+
+```{r}
+
+
+
+country_code="hsmv_compiled"
+df_with_indicators <- merge_indicators2(df = clean_data,
+                                        country_code =country_code ,
+                                        df_uuid = clean_data_uid_col_name,
+                                        hq=T)
+
+if(country_code=="hsmv_compiled"){
+  df_w_cc <- df_with_indicators |> 
+    separate(col = uuid,into = c("country_code", "uuid"),sep="_") 
+  df_w_cc |> count(country_code)
+  split(df_w_cc,df_w_cc$country_code) |> 
+    purrr::imap(
+      ~write_csv(.x,glue::glue("data_share/{.y}_hsmv_rs_extracted.csv"))
+    )
+}
+
+name_prefix <- Sys.Date() |> 
+  str_replace_all("-","")
+
+file_path <- glue::glue("data_share/{name_prefix}_msna_with_rs_{country_code}")
+file_path <- glue::glue("data_share/{name_prefix}_hsmv_with_rs_{country_code}")
+
+write_rds(df_with_indicators,here::here(glue::glue("{file_path}.rds")))
+# write_csv(df_with_indicators,here::here(glue::glue("{file_path}.csv")))
+
+```
+
+
+Specific 
+```{r}
+
+```
+
+
+
+```{r}
+# for car specifically
+
+
+df_with_indicators |> 
+  select(-contains ("GPS")) |> 
+  write_csv("C:\\Users\\zack.arno\\OneDrive - ACTED\\Zack_and_Matt\\MSNA_HSM\\HSM_Validation\\CAR\\20221111_hsmv_with_rs_car.csv")
+```
+
+- Happy analyzing.
+
+
+Let's look at the outputs - first the anonymized coordinates
+The geodata is anonymous.
+- this file can be sent to RS analyst for RS extraction
+- the data keeper can should delete this folder after sending and keep only the vault folder
+
+```{r}
+geodat <- read_rds(file = "data_share/coords_anonymized.rds")
+```
+
+
+lockup is also is anonymous.
+```{r}
+lookup<- read_rds("vault/lookup.rds")
+```
+

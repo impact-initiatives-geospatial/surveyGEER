@@ -818,6 +818,173 @@ tar_target(
 tar_target(
   name = car_rs_indicators_wide,
   command= format_rs_indicators_wide(car_rs_indicators_long)
+),
+  # HSMV - Compiled -------------------------------------------------------------
+
+tar_target(hsmv_compiled_file,
+           "data_share/hsmv_compiled_coords_anonymized.rds", format = "file"
+           ),
+tar_target(
+  name = hsmv_compiled_pt_data_clean,
+  command =read_rds(hsmv_compiled_file)
+  #   format = "feather" # efficient storage of large data frames # nolint
+),
+tar_target(
+  name=hsmv_compiled_oxford_access,
+  command= extract_oxford_access_indicators(geom_sf = hsmv_compiled_pt_data_clean,img_scale = 928)
+),
+tar_target(
+  name= hsmv_compiled_landforms,
+  command = extract_geomorph_landform_indicators(hsmv_compiled_pt_data_clean,img_scale=90)
+),
+tar_target(
+  name= hsmv_compiled_landforms_reclassified,
+  command= recode_srtm_alos_categorical(df = hsmv_compiled_landforms)
+),
+tar_target(
+  name= hsmv_compiled_chirps_rainfall_intensity,
+  command= extract_chirps_rain_intensity(geom_sf=hsmv_compiled_pt_data_clean,from_when="2022-05-31")
+),
+tar_target(
+  name= hsmv_compiled_rainfall_intensity_prepped,
+  command= prep_rs_chirps_intensity_target(hsmv_compiled_chirps_rainfall_intensity,moi=5)
+),
+# this is hardcoded to 2022
+tar_target(
+  name= hsmv_compiled_chirps_spi,
+  command= extract_spi_to_values(geom_sf=hsmv_compiled_pt_data_clean,moi=5)
+),
+# made a new func to user input on year
+tar_target(
+  name= hsmv_compiled_chirps_spi_may21,
+  command= extract_spi_to_values2(x =ee$ImageCollection("UCSB-CHG/CHIRPS/DAILY"),
+                                  geom_sf=hsmv_compiled_pt_data_clean,
+                                  moi=5,
+                                  mo_lags = c(1,2,3),
+                                  yoi=2021)
+),
+tar_target(
+  name= hsmv_compiled_chirps_spi_aug21,
+  command= extract_spi_to_values2(x =ee$ImageCollection("UCSB-CHG/CHIRPS/DAILY"),
+                                  geom_sf=hsmv_compiled_pt_data_clean,
+                                  moi=8,
+                                  mo_lags = c(1,2,3),
+                                  yoi=2021)
+),
+tar_target(
+  name= hsmv_compiled_chirps_spi_july22,
+  command= extract_spi_to_values2(x =ee$ImageCollection("UCSB-CHG/CHIRPS/DAILY"),
+                                  geom_sf=hsmv_compiled_pt_data_clean,
+                                  moi=7,
+                                  mo_lags = c(1,2,3),
+                                  yoi=2022)
+),
+
+tar_target(
+  name= hsmv_compiled_npp,
+  command= extract_npp_indicators(geom_sf = hsmv_compiled_pt_data_clean,img_scale = 500)
+),
+
+tar_target(
+  name= hsmv_compiled_air_quality,
+  command= extract_s5p_air_quality(geom_sf = hsmv_compiled_pt_data_clean,yoi=2022, moi=4, img_scale=111320)
+),
+tar_target(
+  name= hsmv_compiled_growing_season_lengths,
+  command= extract_growing_season_length_viirs(geom_sf = hsmv_compiled_pt_data_clean,yoi=2013:2022,scale=500)
+),
+tar_target(
+  name = hsmv_compiled_mo345_veg_basea,
+  command = extract_monthly_modis_drought(geom_sf=hsmv_compiled_pt_data_clean,
+                                          baseline_years = c(2000:2015),
+                                          moi = c(3, 4, 5),
+                                          yoi = c(2022),
+                                          scale = 250,
+                                          mask = "cloud&quality",
+                                          satellite = "terra",
+                                          TAC = T,
+                                          temporal_interpolation = T)
+),
+tar_target(
+  name= hsmv_compiled_mo345_veg_basea_prepped,
+  command = prep_rs_modis_target(hsmv_compiled_mo345_veg_basea)
+),
+# tar_target(
+#   name = hsmv_compiled_growing_season_mean_ndvi_z,
+#   command = extract_ndvi_anomay(start_date, end_date, baseline,stat)
+# should be sometheing inside chirps_spi/rolling_statistic
+# ),
+tar_target(name= hsmv_compiled_ndvi_growing_season21_z,
+           command=extract_modis_ndvi_anomaly(
+             geom_sf=hsmv_compiled_pt_data_clean,
+             baseline_years = 2000:2021,
+             date_range = c("2021-07-01", "2021-08-31"),
+             range_label = "growing_season",scale= 250
+
+           )),
+tar_target(
+  name = hsmv_compiled_landcover,
+  command= extract_landcover_class(geom_sf = hsmv_compiled_pt_data_clean,landcover = list("esa","esri"))
+),
+
+
+tar_target(
+  name = hsmv_compiled_rs_indicators_long,
+  command= format_rs_indicators_long(country_code= "hsmv_compiled",
+                                     # need to add one character col to not get the pivot_longer error
+                                     # normall the `_pt_data_clean` files have country_code from the
+                                     # start so it is not an issue, rather than re-running the whole
+                                     # target i'll just add here as a shortcut.
+                                     hsmv_compiled_pt_data_clean=hsmv_compiled_pt_data_clean |>
+                                       mutate(country_code="hsmv_compiled",.after="new_uid"),
+
+                                     hsmv_compiled_rainfall_intensity_prepped=hsmv_compiled_rainfall_intensity_prepped  |>
+                                       mutate(country_code= "hsmv_compiled"),
+                                     hsmv_compiled_mo345_veg_basea_prepped=hsmv_compiled_mo345_veg_basea_prepped |>
+                                       mutate(country_code= "hsmv_compiled"),
+
+                                     ## chirps
+                                     hsmv_compiled_chirps_spi=hsmv_compiled_chirps_spi |>
+                                       mutate(country_code= "hsmv_compiled") |>
+                                       rename_with(.cols = starts_with("May"),
+                                                   .fn = ~str_replace(.x,pattern =  "May",replacement = "May22")
+                                       ),
+
+                                     hsmv_compiled_chirps_spi_may21= hsmv_compiled_chirps_spi_may21 |>
+                                       mutate(country_code= "hsmv_compiled") |>
+                                       rename_with(.cols = starts_with("May"),
+                                                   .fn = ~str_replace(.x,pattern =  "May",replacement = "May21")
+                                       ),
+                                     hsmv_compiled_chirps_spi_aug21= hsmv_compiled_chirps_spi_aug21 |>
+                                       mutate(country_code= "hsmv_compiled") |>
+                                       rename_with(.cols = starts_with("Aug"),
+                                                   .fn = ~str_replace(.x,pattern =  "Aug",replacement = "Aug21")
+                                       ),
+                                     hsmv_compiled_chirps_spi_july22= hsmv_compiled_chirps_spi_july22 |>
+                                       mutate(country_code= "hsmv_compiled") |>
+                                       rename_with(.cols = starts_with("Jul"),
+                                                   .fn = ~str_replace(.x,pattern =  "Jul",replacement = "Jul22")
+                                       ),
+
+                                     # hsmv_compiled_dist_to_coast,
+                                     hsmv_compiled_landcover=hsmv_compiled_landcover |>
+                                       mutate(country_code="hsmv_compiled"),
+                                     hsmv_compiled_landforms_reclassified=hsmv_compiled_landforms_reclassified |>
+                                       mutate(country_code= "hsmv_compiled"),
+                                     hsmv_compiled_oxford_access=hsmv_compiled_oxford_access |>
+                                       mutate(country_code="hsmv_compiled"),
+                                     # hsmv_compiled_ndvi_growing_season_z=hsmv_compiled_ndvi_growing_season_z |>
+                                     #   mutate(country_code="hsmv_compiled"),
+                                     hsmv_compiled_npp=hsmv_compiled_npp |>
+                                       mutate(country_code= "hsmv_compiled"),
+                                     hsmv_compiled_air_quality=hsmv_compiled_air_quality |>
+                                       mutate(country_code="hsmv_compiled")
+                                     # hsmv_compiled_local_value_merged
+  )
+),
+tar_target(
+  name = hsmv_compiled_rs_indicators_wide,
+  command= format_rs_indicators_wide(hsmv_compiled_rs_indicators_long)
 )
 
 

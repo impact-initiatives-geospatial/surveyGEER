@@ -27,7 +27,7 @@ extract_geomorph_landform_indicators<- function(geom_sf,img_scale){
     df_values <-  rgee::ee_as_sf(fc_values,via="drive")
   }
   if(nrow(geom_sf)<=5000){
-    df_values <-  rgee::ee_as_sf(fc_values)
+    df_values <-  rgee::ee_as_sf(fc_values,maxFeatures = 5000)
   }
   return(df_values)
 

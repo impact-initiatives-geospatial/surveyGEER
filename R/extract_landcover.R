@@ -79,6 +79,15 @@ recode_from_lookup <- function(df,df_value, lookup,lookup_value,lookup_label){
     )
 }
 
+#' Title
+#'
+#' @param landcover
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
 ee_landcover_lookup <- function(landcover){
   if(landcover=="esa"){
     lu_tbl <- tibble::tribble(

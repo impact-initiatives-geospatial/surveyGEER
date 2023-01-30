@@ -140,3 +140,55 @@ extract_modis_ndvi_anomaly <-  function(geom_sf,
   }
   return(df_values)
 }
+#' extract_ndvi_anomaly
+#'
+#' @param geom_sf
+#' @param baseline_years
+#' @param date_range
+#' @param range_label
+#' @param scale
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
+extract_modis_ndvi_anomaly_urb_mask <-  function(geom_sf,
+                                         # urban_mask= T,
+                                         focal_radius = 4,
+                                         baseline_years = 2000:2021,
+                                         date_range = c("2021-06-20", "2021-09-26"),
+                                         range_label = "growing_season",scale= 250){
+  # load in landcover
+  esa_ic <- ee$ImageCollection("ESA/WorldCover/v100")
+  esa_img <- ee$Image(esa_ic$first())$rename("esa_lulc_10m")
+
+  geom_ee <- rgee::sf_as_ee(geom_sf)
+  ndvi_anomaly_img <- modis_ndvi_anomaly(baseline_years = baseline_years,
+                                            date_range = date_range ,
+                                            range_label = range_label )
+  ndvi_anomaly_img <- ndvi_anomaly_img$select("NDVI_z_score")$
+    rename("ndvi_z_growing_season_21_fs")
+  ndvi_urban_masked <- ndvi_anomaly_img$ee_ob$updateMask(esa_img$neq(50))
+
+  ndvi_urban_masked_focal_median <- ndvi_urban_masked$
+    focal_median( radius = focal_radius,
+                  kernelType= "circle",
+                  units="pixels")$
+    reproject(ndvi_anomaly_img$first()$projection())
+
+
+  fc_values <- ndvi_urban_masked_focal_median$sampleRegions(
+    collection= geom_ee,
+    scale= scale
+  )
+  if(nrow(geom_sf)>5000){
+    df_values <-  rgee::ee_as_sf(fc_values,via="drive") |>
+      sf::st_drop_geometry()
+  }
+  if(nrow(geom_sf)<=5000){
+    df_values <-  rgee::ee_as_sf(fc_values) |>
+      sf::st_drop_geometry()
+  }
+  return(df_values)
+}

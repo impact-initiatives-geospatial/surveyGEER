@@ -214,6 +214,14 @@ tar_target(name= nga_ndvi_growing_season_z,
              range_label = "growing_season",scale= 250
 
            )),
+tar_target(name= nga_ndvi_growing_season_z,
+           command=extract_modis_ndvi_anomaly(
+             geom_sf=nga_pt_data_clean,
+             baseline_years = 2000:2021,
+             date_range = c("2021-06-20", "2021-09-26"),
+             range_label = "growing_season",scale= 250
+
+           )),
 tar_target(name= nga_local_value,
            command=extract_local_values_to_points(schema = "public",country_code="nga",
                                                   geom_sf = nga_pt_data_clean)
